@@ -24,6 +24,8 @@ final class DanmakuEngine: ObservableObject {
         let fontSize: Double
     }
 
+    var danmusCount: Int { danmus.count }
+
     func load(_ items: [DanmakuItem]) {
         danmus = items.sorted { $0.time < $1.time }
         danmuIndex = 0

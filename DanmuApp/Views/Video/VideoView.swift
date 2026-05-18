@@ -20,8 +20,6 @@ struct VideoView: View {
 
     @State private var playlist: [VideoItem] = []
     @State private var currentIndex: Int = 0
-    @State private var currentPage: Int = 0
-    @State private var pageSize = 8
 
     @State private var folders: [FolderItem] = []
     @State private var selectedFolder: String = ""
@@ -36,7 +34,7 @@ struct VideoView: View {
     @State private var autoplay: Bool = true
 
     private let sources = [
-        ("bili", "B站弹幕"), ("qq", "腾讯弹幕"), ("mango", "芒果弹幕"), ("iqiyi", "爱奇艺弹幕")
+        ("bili", "B站"), ("qq", "腾讯"), ("mango", "芒果"), ("iqiyi", "爱奇艺")
     ]
 
     var body: some View {
@@ -46,10 +44,14 @@ struct VideoView: View {
 
             HStack(spacing: 0) {
                 playerArea(isLandscape: isLandscape)
-                if isLandscape && showSidebar { sidebarView.frame(width: sidebarWidth) }
+                if isLandscape && showSidebar {
+                    sidebarView
+                        .frame(width: sidebarWidth)
+                        .transition(.move(edge: .trailing))
+                }
             }
-                .ignoresSafeArea(edges: isLandscape ? .bottom : [])
-                .safeAreaPadding(.top, isLandscape ? 3 : 0)
+            .ignoresSafeArea(edges: isLandscape ? .bottom : [])
+            .safeAreaPadding(.top, isLandscape ? 8 : 0)
             .overlay(alignment: .bottom) {
                 if !isLandscape { portraitControls }
             }
@@ -77,14 +79,13 @@ struct VideoView: View {
         }
     }
 
-    // MARK: - Player
+    // MARK: - Player Area
 
     private func playerArea(isLandscape: Bool) -> some View {
         ZStack {
             VideoPlayerView(player: .constant(player))
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
-            // Seek bar — fade in/out
             if showControls {
                 VStack {
                     Spacer()
@@ -118,7 +119,7 @@ struct VideoView: View {
         .animation(.easeInOut(duration: 0.3), value: showControls)
         .overlay(alignment: .topTrailing) {
             VStack(spacing: 8) {
-                if showControls {
+                if showControls || (isLandscape && showSidebar) {
                     Button { isFullscreen = true } label: {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.title3)
@@ -166,101 +167,142 @@ struct VideoView: View {
         }
     }
 
-    // MARK: - Sidebar (landscape)
+    // MARK: - Sidebar (Landscape Optimized)
 
     private var sidebarView: some View {
-        VStack(spacing: 0) {
-            // Top bar: folder + close
-            HStack(spacing: 8) {
-                Button {
-                    showFolderPicker = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "folder.fill").font(.caption)
-                        Text(selectedFolderName).font(.caption).lineLimit(1)
-                        Image(systemName: "chevron.down").font(.caption2)
+        NavigationStack {
+            VStack(spacing: 0) {
+                // 1. 顶部当前媒体看板 (利用原有的空白区域展示正在播放)
+                if let current = currentItem {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("正在播放")
+                                .font(.caption2).bold()
+                                .foregroundStyle(.indigo)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
+                            
+                            Text(current.name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression))
+                                .font(.subheadline).bold()
+                                .lineLimit(1)
+                        }
+                        Spacer()
                     }
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(.quaternary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.primary.opacity(0.03))
                 }
-                .buttonStyle(.plain)
 
-                Spacer()
+                // 2. 弹幕载入与配置面板 (融合菜单，极大瘦身)
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Menu {
+                            ForEach(sources, id: \.0) { src in
+                                Button(src.1) { selectedSource = src.0 }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(sources.first(where: { $0.0 == selectedSource })?.1 ?? "B站")
+                                Image(systemName: "chevron.down").font(.caption2)
+                            }
+                            .font(.subheadline)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
 
-                Button {
-                    withAnimation { showSidebar.toggle() }
-                } label: {
-                    Image(systemName: "sidebar.right").font(.body)
+                        TextField("输入连接ID (BV/ep/VID)...", text: $danmakuID)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.subheadline)
+                            .submitLabel(.search)
+                            .onSubmit { Task { await loadDanmaku() } }
+                        
+                        Button { Task { await loadDanmaku() } } label: {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.title2)
+                        }
+                        .tint(.indigo)
+                        .disabled(danmakuID.isEmpty)
+                    }
+
+                    // 快捷控制流
+                    HStack(spacing: 12) {
+                        Button {
+                            isPlaying ? player.pause() : player.play()
+                        } label: {
+                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .font(.body)
+                                .foregroundColor(isPlaying ? .orange : .indigo)
+                        }
+                        
+                        Button { engine.seek(to: currentTime) } label: {
+                            Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        
+                        Button { showSettings = true } label: {
+                            Label("参数", systemImage: "slider.horizontal.3")
+                        }
+
+                        Spacer()
+
+                        if !statusMessage.isEmpty {
+                            Text(statusMessage)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .font(.footnote)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider()
+
+                // 3. 播放列表头部
+                playlistHeader
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
+
+                // 4. 无缝丝滑滚动列表 (去掉过时分页)
+                playlistList
             }
-            .padding(.horizontal, 12).padding(.vertical, 10)
-
-            // Danmaku
-            VStack(spacing: 6) {
-                Picker("弹幕源", selection: $selectedSource) {
-                    ForEach(sources, id: \.0) { src in Text(src.1).tag(src.0) }
-                }.pickerStyle(.segmented)
-
-                HStack(spacing: 6) {
-                    TextField("BV号 / ep号 / VID", text: $danmakuID)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-                    Button("加载") { Task { await loadDanmaku() } }
-                        .buttonStyle(.borderedProminent).tint(.indigo)                }
-
-                if !statusMessage.isEmpty {
-                    Text(statusMessage).font(.caption2).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial)
+            // 原生导航栏注入，将切换目录等按钮规范置顶
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showFolderPicker = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder.fill")
+                                .foregroundStyle(.indigo)
+                            Text(selectedFolderName)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 12).padding(.bottom, 8)
-
-            Divider().padding(.horizontal, 12)
-
-            // Player controls
-            HStack(spacing: 6) {
-                Button {
-                    isPlaying ? player.pause() : player.play()
-                } label: {
-                    Label(isPlaying ? "暂停" : "播放", systemImage: isPlaying ? "pause.fill" : "play.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(isPlaying ? .orange : .indigo)
                 
-                Spacer()
-
-                Button { showSettings = true } label: {
-                    Label("设置", systemImage: "slider.horizontal.3").font(.caption)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        withAnimation { showSidebar.toggle() }
+                    } label: {
+                        Image(systemName: "sidebar.right")
+                            .foregroundColor(.indigo)
+                    }
                 }
-                .buttonStyle(.bordered)
-                Button { engine.seek(to: currentTime) } label: {
-                    Label("同步", systemImage: "arrow.triangle.2.circlepath").font(.caption)
-                }
-                .buttonStyle(.bordered)
-
-                Button { isFullscreen = true } label: {
-                    Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.caption)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-
-            Divider().padding(.horizontal, 12)
-
-            // Playlist header
-            playlistHeader.padding(.horizontal, 12).padding(.vertical, 8)
-
-            // Playlist
-            playlistList
-
-            // Page
-            if playlist.count > pageSize {
-                pageControls.padding(.horizontal, 12).padding(.vertical, 8)
             }
         }
-        .background(.ultraThinMaterial)
     }
 
     var selectedFolderName: String {
@@ -268,11 +310,10 @@ struct VideoView: View {
         return folders.first(where: { $0.path == selectedFolder })?.name ?? selectedFolder
     }
 
-    // MARK: - Portrait bottom controls
+    // MARK: - Portrait Bottom Controls
 
     private var portraitControls: some View {
         VStack(spacing: 0) {
-            // Folder + danmaku
             VStack(spacing: 8) {
                 HStack {
                     Button {
@@ -298,7 +339,8 @@ struct VideoView: View {
                     TextField("BV号 / ep号 / VID", text: $danmakuID)
                         .textFieldStyle(.roundedBorder).font(.caption)
                     Button("加载") { Task { await loadDanmaku() } }
-                        .buttonStyle(.borderedProminent).tint(.indigo)                }
+                        .buttonStyle(.borderedProminent).tint(.indigo)
+                }
 
                 HStack(spacing: 6) {
                     Button { isPlaying ? player.pause() : player.play() } label: {
@@ -325,18 +367,14 @@ struct VideoView: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
 
-            // Playlist inline
             if !playlist.isEmpty {
                 playlistList.frame(maxHeight: 180)
-                if playlist.count > pageSize {
-                    pageControls.padding(.horizontal, 12).padding(.bottom, 8)
-                }
             }
         }
         .background(.regularMaterial)
     }
 
-    // MARK: - Folder picker sheet
+    // MARK: - Folder Picker Sheet
 
     private var folderPickerSheet: some View {
         NavigationStack {
@@ -397,61 +435,45 @@ struct VideoView: View {
         }
     }
 
-    // MARK: - Playlist components
+    // MARK: - Playlist Components
 
     private var playlistHeader: some View {
         HStack {
-            Text("播放列表").font(.caption.bold())
+            Text("播放列表").font(.footnote.bold()).foregroundColor(.secondary)
             Spacer()
-            Text("\(playlist.count) 个").font(.caption2).foregroundStyle(.secondary)
+            Text("\(playlist.count) 个视频").font(.caption2).foregroundStyle(.secondary)
         }
     }
 
     private var playlistList: some View {
-        ScrollView {
+        Group {
             if playlist.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "tray").font(.body).foregroundStyle(.secondary)
                     Text("选择目录加载视频").font(.caption2).foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, 20)
             } else {
-                LazyVStack(spacing: 4) {
-                    let start = currentPage * pageSize
-                    let end = min(start + pageSize, playlist.count)
-                    ForEach(Array(playlist[start..<end].enumerated()), id: \.element.id) { i, item in
-                        let idx = start + i
+                List {
+                    ForEach(Array(playlist.enumerated()), id: \.element.id) { idx, item in
                         PlaylistRow(
                             item: item,
                             isActive: idx == currentIndex,
                             onTap: { playItem(at: idx) },
                             onDelete: { deleteItem(at: idx) }
                         )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                        .listRowSeparator(.hidden)
                     }
                 }
-                .padding(.horizontal, 8).padding(.bottom, 4)
+                .listStyle(.plain)
             }
         }
     }
 
-    private var pageControls: some View {
-        HStack(spacing: 16) {
-            Button { changePage(-1) } label: {
-                Image(systemName: "chevron.left").font(.body)
-            }.disabled(currentPage <= 0).buttonStyle(.bordered).controlSize(.regular)
-
-            Text("\(currentPage + 1)/\(max(1, maxPage))")
-                .font(.callout).foregroundStyle(.secondary).monospacedDigit()
-
-            Button { changePage(1) } label: {
-                Image(systemName: "chevron.right").font(.body)
-            }.disabled(currentPage >= maxPage - 1).buttonStyle(.bordered).controlSize(.regular)
-        }
-    }
-
-    private var maxPage: Int { max(1, Int(ceil(Double(playlist.count) / Double(pageSize)))) }
-
-    // MARK: - Actions
+    // MARK: - Core Logic & Actions
 
     private var currentItem: VideoItem? {
         guard currentIndex >= 0, currentIndex < playlist.count else { return nil }
@@ -464,7 +486,6 @@ struct VideoView: View {
             if folders.isEmpty {
                 statusMessage = "服务器未配置视频目录"
             } else if selectedFolder.isEmpty, let fallback = folders.first(where: { $0.name == "食贫道" }) ?? folders.first {
-                // Auto-select on first load
                 selectedFolder = fallback.path
                 await switchFolder(fallback.path)
             }
@@ -481,7 +502,6 @@ struct VideoView: View {
                 VideoItem(name: name, relativePath: name, videoId: detectVideoID(name), thumbnailName: name, isRemote: true)
             }
             currentIndex = 0
-            currentPage = 0
             statusMessage = "已加载 \(playlist.count) 个视频"
             if !playlist.isEmpty { playItem(at: 0) }
         } catch {
@@ -507,7 +527,6 @@ struct VideoView: View {
         player.play()
         isPlaying = true
 
-        // Observe duration
         durationObserver?.invalidate()
         durationObserver = playerItem.observe(\.duration, options: [.new]) { item, _ in
             let d = item.duration.seconds
@@ -540,13 +559,6 @@ struct VideoView: View {
         } else if index < currentIndex {
             currentIndex -= 1
         }
-    }
-
-    private func changePage(_ delta: Int) {
-        let new = currentPage + delta
-        guard new >= 0, new < maxPage else { return }
-        currentPage = new
-        playItem(at: new * pageSize)
     }
 
     private func loadDanmaku() async {
@@ -587,7 +599,6 @@ struct VideoView: View {
     }
 
     private func setupTimeObserver() {
-        // Periodic time update (10 Hz)
         let interval = CMTime(value: 1, timescale: 10)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
             let t = time.seconds
@@ -600,7 +611,6 @@ struct VideoView: View {
             }
         }
 
-        // Video ended → auto-advance
         videoEndedObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: nil,
@@ -615,14 +625,8 @@ struct VideoView: View {
             }
         }
 
-        // Periodic progress save (every 5s)
         progressSaveTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
             Task { @MainActor in self.saveProgress() }
-        }
-
-        // Periodic progress save (every 5s)
-        progressSaveTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
-            saveProgress()
         }
     }
 
@@ -634,7 +638,7 @@ struct VideoView: View {
     }
 }
 
-// MARK: - Playlist Row
+// MARK: - Playlist Row (Modernized Style)
 
 struct PlaylistRow: View {
     let item: VideoItem
@@ -642,8 +646,19 @@ struct PlaylistRow: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
+    // 后缀清洗逻辑：移除文件名中的多余脏数据
+    private var cleanedDisplayName: String {
+        var name = item.name
+        let suffixesToRemove = [".mp4", ".mkv", ".mov", ".avi", "_4K", "_1080P", "_4k", "_1080p"]
+        for suffix in suffixesToRemove {
+            name = name.replacingOccurrences(of: suffix, with: "", options: .caseInsensitive)
+        }
+        return name
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
+            // 标准 16:9 比例缩略图
             AsyncImage(url: APIService.shared.fetchThumbnailURL(name: item.thumbnailName)) { phase in
                 switch phase {
                 case .success(let img):
@@ -653,15 +668,20 @@ struct PlaylistRow: View {
                         .overlay(Image(systemName: "play.rectangle").font(.caption).foregroundStyle(.secondary))
                 }
             }
-            .frame(width: 72, height: 40)
+            .frame(width: 88, height: 50)
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            Text(item.displayName).font(.caption).lineLimit(2)
+            Text(cleanedDisplayName)
+                .font(.subheadline)
+                .lineLimit(2)
+                .foregroundColor(isActive ? .indigo : .primary)
+                .bold(isActive)
+            
             Spacer()
         }
-        .padding(6)
-        .background(isActive ? Color.indigo.opacity(0.12) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(8)
+        .background(isActive ? Color.indigo.opacity(0.08) : Color.primary.opacity(0.02))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .contextMenu {
@@ -692,7 +712,6 @@ struct FullscreenPlayerView: View {
             VideoPlayerView(player: .constant(player))
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
-            // Close button
             VStack {
                 HStack {
                     Spacer()
@@ -713,7 +732,6 @@ struct FullscreenPlayerView: View {
             }
             .opacity(showControls ? 1 : 0)
 
-            // Seek bar
             if showControls {
                 VStack {
                     Spacer()

@@ -38,6 +38,7 @@ struct LiveView: View {
     @State private var seekTarget: Double = 0
     @State private var isDraggingSlider: Bool = false
     @State private var isFullscreen: Bool = false
+    @State private var controlsTimer: Task<Void, Never>? // 新增：可控的控制条定时器
 
     private let sources = [("zhibo8", "直播吧"), ("txsp", "腾讯体育")]
     private let zhibo8Types = [("nba", "NBA"), ("zuqiu", "足球"), ("other", "其他")]
@@ -50,7 +51,7 @@ struct LiveView: View {
                 if isLandscape {
                     HStack(spacing: 0) {
                         playerArea
-                        controlSidebar.frame(width: 320)
+                        controlSidebar.frame(width: 350) // 拓宽侧边栏，给大屏更好的排版空间
                     }
                 } else {
                     VStack(spacing: 0) {
@@ -61,8 +62,8 @@ struct LiveView: View {
             }
             .ignoresSafeArea(edges: isLandscape ? .bottom : [])
         }
-        .onAppear { setupTimeObserver() }
-        .onDisappear { player.pause(); isPlaying = false; stopPolling(); removeTimeObserver() }
+        .onAppear { setupTimeObserver(); resetControlsTimer() }
+        .onDisappear { player.pause(); isPlaying = false; stopPolling(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
             DanmakuSettings(config: $engine.config)
         }
@@ -76,7 +77,7 @@ struct LiveView: View {
         }
     }
 
-    // MARK: - Player
+    // MARK: - Player Area
 
     private var playerArea: some View {
         ZStack {
@@ -94,17 +95,18 @@ struct LiveView: View {
                                     Task { await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600)) }
                                 }
                             }
-                        ).tint(.red)
+                        ).tint(.red) // 直播流使用红色作为警示与状态色
                         HStack {
                             Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
                             Spacer()
                             Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
                         }
+                        .foregroundColor(.white)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(.ultraThinMaterial.opacity(0.6))
+                    .background(.ultraThinMaterial.opacity(0.7))
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
             }
         }
         .background(.black)
@@ -116,126 +118,216 @@ struct LiveView: View {
                         .font(.title3).padding(8)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .foregroundColor(.white)
                 }.padding(12)
             }
         }
         .onTapGesture {
-            isPlaying ? player.pause() : player.play()
+            if isPlaying { player.pause() } else { player.play() }
             showControls = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { showControls = false }
+            resetControlsTimer()
         }
     }
 
-    // MARK: - Sidebar (landscape)
+    private func resetControlsTimer() {
+        controlsTimer?.cancel()
+        controlsTimer = Task {
+            try? await Task.sleep(nanoseconds: 8_000_000_000) // 8秒无操作自动隐藏
+            guard !Task.isCancelled else { return }
+            withAnimation { showControls = false }
+        }
+    }
+
+    // MARK: - Sidebar & Sheet Container
 
     private var controlSidebar: some View {
         ScrollView {
-            streamControls.padding(12)
-        }.background(.ultraThinMaterial)
+            VStack(spacing: 16) {
+                // 顶部状态看版
+                liveStatusHeader
+                streamControls
+            }
+            .padding(.horizontal, 16) // 左右依然保持 16 的舒适间距
+            .padding(.bottom, 16)     // 底部依然保持 16
+            .padding(.top, 0)         // 👈 把顶部间距从 16 缩减到 2（或者 0），立刻大幅度上移！
+        }
+        .background(.ultraThinMaterial)
+//        .ignoresSafeArea(edges: .top)
     }
 
     private var controlSheet: some View {
         ScrollView {
-            streamControls.padding(12)
-        }.background(.regularMaterial)
+            VStack(spacing: 16) {
+                streamControls
+            }
+            .padding(.horizontal, 16) // 左右依然保持 16 的舒适间距
+            .padding(.bottom, 16)     // 底部依然保持 16
+            .padding(.top, 2)         // 👈 把顶部间距从 16 缩减到 2（或者 0），立刻大幅度上移！
+        }
+        .background(.regularMaterial)
     }
 
-    // MARK: - Shared controls
+    // MARK: - Live Header 看板
+
+    private var liveStatusHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Circle().fill(isPlaying ? Color.red : Color.gray)
+                        .frame(width: 8, height: 8)
+                    Text(isPlaying ? "正在直播" : "未连接")
+                        .font(.caption2).bold()
+                        .foregroundColor(isPlaying ? .red : .secondary)
+                }
+                Text("实时弹幕容器").font(.headline)
+            }
+            Spacer()
+            
+            Text("\(danmakuCount) 条")
+                .font(.caption2).bold()
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(.red.opacity(0.1), in: Capsule())
+                .foregroundColor(.red)
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Shared Stream Controls
 
     private var streamControls: some View {
-        VStack(spacing: 12) {
-            // --- 直播流 ---
-            VStack(alignment: .leading, spacing: 6) {
-                Label("直播流", systemImage: "antenna.radiowaves.left.and.right")
-                    .font(.caption).foregroundStyle(.secondary)
+        VStack(spacing: 16) {
+            
+            // --- 模块 1：直播流配置卡片 ---
+            VStack(alignment: .leading, spacing: 12) {
+                Label("直播流源 (M3U8)", systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.footnote).bold().foregroundStyle(.secondary)
 
-                HStack(spacing: 6) {
-                    TextField("网页地址提取...", text: $sniffURL)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-                    Button("提取") { Task { await sniff() } }
-                        .buttonStyle(.borderedProminent).tint(.indigo)                }
-                if !sniffStatus.isEmpty {
-                    Text(sniffStatus).font(.caption2).foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        TextField("输入网页地址自动嗅探...", text: $sniffURL)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.subheadline)
+                        Button("嗅探") { Task { await sniff() } }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.indigo)
+                    }
+                    
+                    if !sniffStatus.isEmpty {
+                        Text(sniffStatus)
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
-                HStack(spacing: 6) {
-                    TextField("M3U8 直播地址...", text: $streamURL)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-                }
-                HStack(spacing: 6) {
+                TextField("直播源绝对地址...", text: $streamURL)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.subheadline)
+                
+                HStack(spacing: 8) {
                     Button { playStream() } label: {
-                        Label("播放", systemImage: "play.fill").font(.caption)
+                        Label("加载播放", systemImage: "play.fill")
+                            .font(.subheadline).bold()
                             .frame(maxWidth: .infinity)
-                    }.buttonStyle(.borderedProminent).tint(.red)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .disabled(streamURL.isEmpty)
+                    
                     Button { stopStream() } label: {
-                        Label("停止", systemImage: "stop.fill").font(.caption)
+                        Label("停止", systemImage: "stop.fill")
+                            .font(.subheadline)
                             .frame(maxWidth: .infinity)
-                    }.buttonStyle(.bordered)                }
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
+            .padding(14)
+            .background(Color.primary.opacity(0.02))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            Divider()
-
-            // --- 弹幕 ---
-            VStack(alignment: .leading, spacing: 6) {
-                Label("弹幕", systemImage: "text.bubble").font(.caption).foregroundStyle(.secondary)
+            // --- 模块 2：弹幕配置卡片 ---
+            VStack(alignment: .leading, spacing: 12) {
+                Label("实时弹幕服务", systemImage: "text.bubble")
+                    .font(.footnote).bold().foregroundStyle(.secondary)
 
                 Picker("弹幕源", selection: $selectedSource) {
                     ForEach(sources, id: \.0) { Text($0.1).tag($0.0) }
-                }.pickerStyle(.segmented)
+                }
+                .pickerStyle(.segmented)
 
                 if selectedSource == "zhibo8" {
-                    Picker("赛事", selection: $zhibo8Type) {
+                    Picker("赛事分类", selection: $zhibo8Type) {
                         ForEach(zhibo8Types, id: \.0) { Text($0.1).tag($0.0) }
-                    }.pickerStyle(.segmented)
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 if selectedSource == "txsp" {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         TextField("Room ID", text: $txspRoomId)
-                            .textFieldStyle(.roundedBorder).font(.caption)
+                            .textFieldStyle(.roundedBorder).font(.subheadline)
                         TextField("Program ID", text: $txspProgramId)
-                            .textFieldStyle(.roundedBorder).font(.caption)
+                            .textFieldStyle(.roundedBorder).font(.subheadline)
                     }
                 }
 
                 HStack(spacing: 6) {
-                    TextField("房间号或ID", text: $danmakuID)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-                    Button("加载") { loadDanmakuPolling() }
-                        .buttonStyle(.borderedProminent).tint(.indigo)                }
+                    TextField(selectedSource == "zhibo8" ? "房间号/比赛ID" : "视频ID", text: $danmakuID)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.subheadline)
+                    
+                    Button("联机轮询") { loadDanmakuPolling() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.indigo)
+                }
 
-                HStack(spacing: 4) {
-                    if !statusMessage.isEmpty {
-                        Text(statusMessage).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                if !statusMessage.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle").font(.caption2)
+                        Text(statusMessage).font(.caption2)
                     }
-                    Spacer()
-                    Text("\(danmakuCount) 条").font(.caption2).foregroundStyle(.secondary)
+                    .foregroundStyle(.secondary)
                 }
             }
+            .padding(14)
+            .background(Color.primary.opacity(0.02))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            Divider()
-
-            // --- 播放 ---
-            HStack(spacing: 6) {
+            // --- 模块 3：底层多媒体全局快捷键 ---
+            HStack(spacing: 8) {
                 Button {
                     isPlaying ? player.pause() : player.play()
                 } label: {
-                    Label(isPlaying ? "暂停" : "播放", systemImage: isPlaying ? "pause.fill" : "play.fill")
-                        .font(.caption).frame(maxWidth: .infinity)
+                    Label(isPlaying ? "暂停" : "开播", systemImage: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.subheadline).bold()
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(isPlaying ? .orange : .indigo)
                 
                 Button { showSettings = true } label: {
-                    Label("设置", systemImage: "slider.horizontal.3").font(.caption)
-                }.buttonStyle(.bordered)
+                    Image(systemName: "slider.horizontal.3")
+                }
+                .buttonStyle(.bordered)
+                
                 Button { engine.reset(); stopStream() } label: {
-                    Label("重置", systemImage: "arrow.counterclockwise").font(.caption)
-                }.buttonStyle(.bordered)            }
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+
+                Button { isFullscreen = true } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                }
+                .buttonStyle(.bordered)
+            }
+            .controlSize(.regular)
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Core Logic & Network Actions
 
     private func playStream() {
         guard !streamURL.isEmpty, let url = URL(string: streamURL) else { return }
@@ -252,17 +344,17 @@ struct LiveView: View {
 
     private func sniff() async {
         guard !sniffURL.isEmpty else { return }
-        sniffStatus = "提取中..."
+        sniffStatus = "网络探针运行中..."
         do {
             let result = try await APIService.shared.sniffStream(pageUrl: sniffURL)
             streamURL = result.streamUrl
-            sniffStatus = "已提取"
+            sniffStatus = "嗅探成功！已自动填充地址"
         } catch {
-            sniffStatus = error.localizedDescription
+            sniffStatus = "解析失败: \(error.localizedDescription)"
         }
     }
 
-    // MARK: - Danmaku polling
+    // MARK: - Danmaku Polling Engine
 
     private func loadDanmakuPolling() {
         stopPolling()
@@ -281,19 +373,19 @@ struct LiveView: View {
             guard !danmakuID.isEmpty else { return }
             zhibo8LastMaxId = 0
             engine.load([])
-            statusMessage = "开始轮询..."
+            statusMessage = "激活轮询监听..."
             pollZhibo8()
             pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
                 Task { @MainActor in self.pollZhibo8() }
             }
         } else if selectedSource == "txsp" {
             guard !txspRoomId.isEmpty, !txspProgramId.isEmpty else {
-                statusMessage = "请输入 Room ID 和 Program ID"; return
+                statusMessage = "房间参数缺失"; return
             }
             txspLastSeq = 0
             txspCursor = ""
             engine.load([])
-            statusMessage = "开始轮询..."
+            statusMessage = "激活轮询监听..."
             pollTxsp()
         }
     }
@@ -304,10 +396,12 @@ struct LiveView: View {
                 let response = try await APIService.shared.fetchZhibo8Danmaku(
                     matchId: danmakuID, type: zhibo8Type, lastMaxId: zhibo8LastMaxId
                 )
-                engine.append(response.danmus)
-                danmakuCount += response.count
-                zhibo8LastMaxId = max(zhibo8LastMaxId, response.count)
-                statusMessage = "轮询中... 共 \(danmakuCount) 条"
+                if response.count > 0 {
+                    engine.append(response.danmus)
+                    danmakuCount = engine.danmusCount
+                }
+                if let maxId = response.maxId { zhibo8LastMaxId = maxId }
+                statusMessage = "同步完成，通道运行正常"
             } catch {
                 statusMessage = error.localizedDescription
             }
@@ -321,19 +415,21 @@ struct LiveView: View {
                     roomId: txspRoomId, programId: txspProgramId,
                     lastSeq: txspLastSeq, cursor: txspCursor
                 )
-                engine.append(response.danmus)
-                danmakuCount += response.count
                 if response.count > 0 {
-                    statusMessage = "轮询中... 共 \(danmakuCount) 条"
+                    engine.append(response.danmus)
+                    danmakuCount = engine.danmusCount
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                if let maxSeq = response.maxSeq { txspLastSeq = maxSeq }
+                if let cursor = response.cursor { txspCursor = cursor }
+                let interval = Double(response.pullInterval ?? 3000) / 1000.0
+                DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
                     Task { @MainActor in
                         guard self.isPolling else { return }
                         self.pollTxsp()
                     }
                 }
             } catch {
-                statusMessage = "轮询失败: \(error.localizedDescription)"
+                statusMessage = "重试连接中..."
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     Task { @MainActor in
                         guard self.isPolling else { return }
@@ -344,7 +440,7 @@ struct LiveView: View {
         }
     }
 
-    // MARK: - Time observer
+    // MARK: - Time Observers
 
     private func setupTimeObserver() {
         let interval = CMTime(value: 1, timescale: 10)
@@ -373,7 +469,7 @@ struct LiveView: View {
     }
 }
 
-// MARK: - Live Fullscreen
+// MARK: - Live Fullscreen View
 
 struct LiveFullscreenView: View {
     let player: AVPlayer
@@ -385,6 +481,7 @@ struct LiveFullscreenView: View {
     @Binding var isFullscreen: Bool
 
     @State private var showControls = true
+    @State private var controlsTimer: Task<Void, Never>? // 同样升级全屏定时器
 
     var body: some View {
         ZStack {
@@ -420,6 +517,7 @@ struct LiveFullscreenView: View {
                             Spacer()
                             Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
                         }
+                        .foregroundColor(.white)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)
                     .background(.ultraThinMaterial.opacity(0.6))
@@ -431,12 +529,20 @@ struct LiveFullscreenView: View {
         .animation(.easeInOut(duration: 0.3), value: showControls)
         .ignoresSafeArea().statusBarHidden()
         .onTapGesture {
-            isPlaying ? player.pause() : player.play()
+            if isPlaying { player.pause() } else { player.play() }
             showControls = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { showControls = false }
+            resetControlsTimer()
         }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { showControls = false }
+        .onAppear { resetControlsTimer() }
+        .onDisappear { controlsTimer?.cancel() }
+    }
+
+    private func resetControlsTimer() {
+        controlsTimer?.cancel()
+        controlsTimer = Task {
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation { showControls = false }
         }
     }
 

@@ -31,10 +31,17 @@ struct DanmakuResponse: Decodable {
     let danmus: [DanmakuItem]
     let count: Int
     let fromCache: Bool?
+    let maxId: Int?
+    let maxSeq: Int?
+    let cursor: String?
+    let pullInterval: Int?
 
     enum CodingKeys: String, CodingKey {
-        case danmus, count
+        case danmus, count, cursor
         case fromCache = "from_cache"
+        case maxId = "maxId"
+        case maxSeq = "maxSeq"
+        case pullInterval = "pullInterval"
     }
 
     init(from decoder: Decoder) throws {
@@ -42,6 +49,10 @@ struct DanmakuResponse: Decodable {
         danmus = try c.decode([DanmakuItem].self, forKey: .danmus)
         count = try c.decode(Int.self, forKey: .count)
         fromCache = try c.decodeIfPresent(Bool.self, forKey: .fromCache)
+        maxId = try c.decodeIfPresent(Int.self, forKey: .maxId)
+        maxSeq = try c.decodeIfPresent(Int.self, forKey: .maxSeq)
+        cursor = try c.decodeIfPresent(String.self, forKey: .cursor)
+        pullInterval = try c.decodeIfPresent(Int.self, forKey: .pullInterval)
     }
 }
 
