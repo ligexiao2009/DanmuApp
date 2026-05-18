@@ -90,6 +90,14 @@ struct VideoView: View {
                 VStack {
                     Spacer()
                     VStack(spacing: 4) {
+                        if isDraggingSlider {
+                            Text(formatTime(seekTarget))
+                                .font(.title3.bold()).monospacedDigit()
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
+                                .transition(.opacity.combined(with: .scale(scale: 1.1)))
+                        }
                         Slider(
                             value: $seekTarget,
                             in: 0...max(playerDuration, 1),
@@ -736,6 +744,14 @@ struct FullscreenPlayerView: View {
                 VStack {
                     Spacer()
                     VStack(spacing: 4) {
+                        if isDraggingSlider {
+                            Text(formatTime(seekTarget))
+                                .font(.title3.bold()).monospacedDigit()
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
+                                .transition(.opacity.combined(with: .scale(scale: 1.1)))
+                        }
                         Slider(
                             value: $seekTarget,
                             in: 0...max(playerDuration, 1),

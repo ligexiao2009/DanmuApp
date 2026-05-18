@@ -88,6 +88,13 @@ struct LiveView: View {
                 VStack {
                     Spacer()
                     VStack(spacing: 4) {
+                        if isDraggingSlider {
+                            Text(formatTime(seekTarget))
+                                .font(.title3.bold()).monospacedDigit()
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(.red, in: RoundedRectangle(cornerRadius: 8))
+                        }
                         Slider(value: $seekTarget, in: 0...max(playerDuration, 1),
                             onEditingChanged: { editing in
                                 isDraggingSlider = editing
@@ -95,7 +102,7 @@ struct LiveView: View {
                                     Task { await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600)) }
                                 }
                             }
-                        ).tint(.red) // 直播流使用红色作为警示与状态色
+                        ).tint(.red)
                         HStack {
                             Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
                             Spacer()
@@ -504,6 +511,13 @@ struct LiveFullscreenView: View {
                 VStack {
                     Spacer()
                     VStack(spacing: 4) {
+                        if isDraggingSlider {
+                            Text(formatTime(seekTarget))
+                                .font(.title3.bold()).monospacedDigit()
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(.red, in: RoundedRectangle(cornerRadius: 8))
+                        }
                         Slider(value: $seekTarget, in: 0...max(playerDuration, 1),
                             onEditingChanged: { editing in
                                 isDraggingSlider = editing
