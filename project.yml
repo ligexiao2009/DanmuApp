@@ -1,0 +1,45 @@
+name: DanmuApp
+options:
+  bundleIdPrefix: com.danmu
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    INFOPLIST_FILE: DanmuApp/Info.plist
+    PRODUCT_BUNDLE_IDENTIFIER: com.danmu.app
+
+targets:
+  DanmuApp:
+    type: application
+    platform: iOS
+    sources:
+      - DanmuApp
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "2"
+        SUPPORTED_PLATFORMS: "iphoneos ipados"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "YES"
+    info:
+      path: DanmuApp/Info.plist
+      properties:
+        CFBundleName: DanmuApp
+        CFBundleDisplayName: 弹幕播放器
+        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0"
+        UILaunchScreen: ""
+        UIApplicationSupportsIndirectInputEvents: YES
+        UIRequiresFullScreen: YES
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: YES

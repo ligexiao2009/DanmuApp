@@ -1,0 +1,413 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		109F65DCB30682185004B2BC /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */; };
+		3DC60C0C98B8EA445719F506 /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C429D807ACC2032F4FE4A14 /* APIService.swift */; };
+		4AF35998BCCC42E2608742FB /* VideoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */; };
+		5F49DC254C68362B05C94BA8 /* DanmakuEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */; };
+		7E2D38AE8A9442DADFA2F49A /* DanmakuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */; };
+		8F93661B36DFBEDCA4F52F73 /* DanmakuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */; };
+		94CD1CA7AA58CF0059138AE8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7D83A009F732D0750B37C10E /* Assets.xcassets */; };
+		B8EFD392B795A05ABC7A86E1 /* VideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76BF5B682CA45B9BB027E0A /* VideoView.swift */; };
+		B9B923B6E2B7913BA2534A95 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02ED99DC98504225D7407730 /* HomeView.swift */; };
+		B9BA20B1DF1045ECF399A95D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76EF1CA9F5B88A08074DA7A /* ContentView.swift */; };
+		EC0A1E7A0D4E1BC71B6CF08D /* DanmakuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6814C9936927837AD89BF78D /* DanmakuSettings.swift */; };
+		EE79F40975DC9885EA762691 /* DanmuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F01CAD37CB1911F6400BD3 /* DanmuApp.swift */; };
+		F9FBF96096B95F6B28D790BA /* LiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0B64C44CCEB0BA21961A2C /* LiveView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		02ED99DC98504225D7407730 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		54F01CAD37CB1911F6400BD3 /* DanmuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmuApp.swift; sourceTree = "<group>"; };
+		5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuItem.swift; sourceTree = "<group>"; };
+		6814C9936927837AD89BF78D /* DanmakuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuSettings.swift; sourceTree = "<group>"; };
+		74070FA8A39D27C8351E5E5D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuEngine.swift; sourceTree = "<group>"; };
+		7D83A009F732D0750B37C10E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoItem.swift; sourceTree = "<group>"; };
+		8C429D807ACC2032F4FE4A14 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
+		BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuOverlay.swift; sourceTree = "<group>"; };
+		BF0B64C44CCEB0BA21961A2C /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
+		C76EF1CA9F5B88A08074DA7A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
+		E340044D2C574FF970813134 /* DanmuApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DanmuApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F76BF5B682CA45B9BB027E0A /* VideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1068240EACCA1C64CDB3C8BC /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */,
+				845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		106EAAD02F5F6918838B2A84 /* DanmuApp */ = {
+			isa = PBXGroup;
+			children = (
+				7D83A009F732D0750B37C10E /* Assets.xcassets */,
+				C76EF1CA9F5B88A08074DA7A /* ContentView.swift */,
+				54F01CAD37CB1911F6400BD3 /* DanmuApp.swift */,
+				74070FA8A39D27C8351E5E5D /* Info.plist */,
+				1068240EACCA1C64CDB3C8BC /* Models */,
+				80AFBE92B46B85773B9A324E /* Network */,
+				5D2BFD0D2378F4DD438751E0 /* Views */,
+			);
+			path = DanmuApp;
+			sourceTree = "<group>";
+		};
+		1D95A3A46DB59925E7525608 /* Video */ = {
+			isa = PBXGroup;
+			children = (
+				F76BF5B682CA45B9BB027E0A /* VideoView.swift */,
+			);
+			path = Video;
+			sourceTree = "<group>";
+		};
+		30D38D70CE335566493EB0DA /* Player */ = {
+			isa = PBXGroup;
+			children = (
+				DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */,
+			);
+			path = Player;
+			sourceTree = "<group>";
+		};
+		31E0C262D8DE50117F8DB344 /* Live */ = {
+			isa = PBXGroup;
+			children = (
+				BF0B64C44CCEB0BA21961A2C /* LiveView.swift */,
+			);
+			path = Live;
+			sourceTree = "<group>";
+		};
+		5D2BFD0D2378F4DD438751E0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D077096934442BF3B7C7A854 /* Components */,
+				C49E982B14F74037F71EA0E1 /* Home */,
+				31E0C262D8DE50117F8DB344 /* Live */,
+				30D38D70CE335566493EB0DA /* Player */,
+				1D95A3A46DB59925E7525608 /* Video */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		5D84ABEBA59018DB0F2B4EBE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E340044D2C574FF970813134 /* DanmuApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		80AFBE92B46B85773B9A324E /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				8C429D807ACC2032F4FE4A14 /* APIService.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
+		A4494572FDEB3E5F1CA87AC7 = {
+			isa = PBXGroup;
+			children = (
+				106EAAD02F5F6918838B2A84 /* DanmuApp */,
+				5D84ABEBA59018DB0F2B4EBE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C49E982B14F74037F71EA0E1 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				02ED99DC98504225D7407730 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		D077096934442BF3B7C7A854 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */,
+				BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */,
+				6814C9936927837AD89BF78D /* DanmakuSettings.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A9742CD03E9F8DE6BDC2FD02 /* DanmuApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FEB15694DDEE1CEB95B83EC5 /* Build configuration list for PBXNativeTarget "DanmuApp" */;
+			buildPhases = (
+				3EAA7181E313F7B0336F4E0C /* Sources */,
+				C3A6131B29D291D8D15F5742 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DanmuApp;
+			packageProductDependencies = (
+			);
+			productName = DanmuApp;
+			productReference = E340044D2C574FF970813134 /* DanmuApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		10696F8286098734F70A255F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 88023D5A8CA1A9E0F7656EF7 /* Build configuration list for PBXProject "DanmuApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A4494572FDEB3E5F1CA87AC7;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5D84ABEBA59018DB0F2B4EBE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A9742CD03E9F8DE6BDC2FD02 /* DanmuApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C3A6131B29D291D8D15F5742 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94CD1CA7AA58CF0059138AE8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3EAA7181E313F7B0336F4E0C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3DC60C0C98B8EA445719F506 /* APIService.swift in Sources */,
+				B9BA20B1DF1045ECF399A95D /* ContentView.swift in Sources */,
+				5F49DC254C68362B05C94BA8 /* DanmakuEngine.swift in Sources */,
+				7E2D38AE8A9442DADFA2F49A /* DanmakuItem.swift in Sources */,
+				8F93661B36DFBEDCA4F52F73 /* DanmakuOverlay.swift in Sources */,
+				EC0A1E7A0D4E1BC71B6CF08D /* DanmakuSettings.swift in Sources */,
+				EE79F40975DC9885EA762691 /* DanmuApp.swift in Sources */,
+				B9B923B6E2B7913BA2534A95 /* HomeView.swift in Sources */,
+				F9FBF96096B95F6B28D790BA /* LiveView.swift in Sources */,
+				4AF35998BCCC42E2608742FB /* VideoItem.swift in Sources */,
+				109F65DCB30682185004B2BC /* VideoPlayerView.swift in Sources */,
+				B8EFD392B795A05ABC7A86E1 /* VideoView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		451F9175A4FF511AFAF3C21F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = DanmuApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos ipados";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		5A701E697A32F812FF55A6A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = DanmuApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos ipados";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		C8931F09FB4FC6988A1EE7B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = DanmuApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.danmu.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F18FC181E62B2E6C01901097 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = DanmuApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.danmu.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		88023D5A8CA1A9E0F7656EF7 /* Build configuration list for PBXProject "DanmuApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C8931F09FB4FC6988A1EE7B1 /* Debug */,
+				F18FC181E62B2E6C01901097 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FEB15694DDEE1CEB95B83EC5 /* Build configuration list for PBXNativeTarget "DanmuApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				451F9175A4FF511AFAF3C21F /* Debug */,
+				5A701E697A32F812FF55A6A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 10696F8286098734F70A255F /* Project object */;
+}
