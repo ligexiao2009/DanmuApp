@@ -41,6 +41,7 @@ struct VideoView: View {
     @AppStorage("subtitleMemory") private var subtitleMemoryData = "{}"
     @State private var currentSubtitleName = ""
     @State private var danmakuHidden = false
+    @State private var isLoadingDanmaku = false
     @State private var subtitleEntries: [SubtitleEntry] = []
 
     struct SubtitleEntry {
@@ -342,7 +343,7 @@ struct VideoView: View {
                 }
 
                 VStack(spacing: 12) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Menu {
                             ForEach(sources, id: \.0) { src in
                                 Button(src.1) { selectedSource = src.0 }
@@ -353,24 +354,32 @@ struct VideoView: View {
                                 Image(systemName: "chevron.down").font(.caption2)
                             }
                             .font(.subheadline)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                         }
                         .buttonStyle(.plain)
 
-                        TextField("输入连接ID (BV/ep/VID)...", text: $danmakuID)
+                        TextField("BV号 / ep号 / VID", text: $danmakuID)
                             .textFieldStyle(.roundedBorder)
-                            .font(.subheadline)
+                            .font(.caption)
                             .submitLabel(.search)
                             .onSubmit { Task { await loadDanmaku() } }
-                        
+                            .frame(maxWidth: 120)
+
                         Button { Task { await loadDanmaku() } } label: {
                             Image(systemName: "arrow.down.circle.fill")
-                                .font(.title2)
+                                .font(.title3)
                         }
                         .tint(.indigo)
-                        .disabled(danmakuID.isEmpty)
+                        .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+
+                        Button { Task { await refreshDanmaku() } } label: {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .font(.title3)
+                        }
+                        .tint(.orange)
+                        .disabled(danmakuID.isEmpty || isLoadingDanmaku)
                     }
 
                     HStack(spacing: 12) {
@@ -392,8 +401,9 @@ struct VideoView: View {
 
                         Button { Task { await fetchSubtitles() } } label: {
                             Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text")
-                                .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green) // 有字幕时高亮
+                                .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
                         }
+                        .disabled(isLoadingSubtitles)
 
                         Spacer()
                     }
@@ -486,8 +496,14 @@ struct VideoView: View {
                 HStack(spacing: 6) {
                     TextField("BV号 / ep号 / VID", text: $danmakuID)
                         .textFieldStyle(.roundedBorder).font(.caption)
+                        .frame(maxWidth: 110)
                     Button("加载") { Task { await loadDanmaku() } }
                         .buttonStyle(.borderedProminent).tint(.indigo)
+                    Button { Task { await refreshDanmaku() } } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.bordered).tint(.orange)
+                    .disabled(danmakuID.isEmpty || isLoadingDanmaku)
                 }
 
                 HStack(spacing: 6) {
@@ -507,7 +523,7 @@ struct VideoView: View {
                     Button { Task { await fetchSubtitles() } } label: {
                         Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text").font(.caption)
                             .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
-                    }.buttonStyle(.bordered)
+                    }.buttonStyle(.bordered).disabled(isLoadingSubtitles)
                     Spacer()
 
                     Toggle("连播", isOn: $autoplay).toggleStyle(.switch)
@@ -728,13 +744,30 @@ struct VideoView: View {
 
     private func loadDanmaku() async {
         guard !danmakuID.isEmpty else { return }
+        isLoadingDanmaku = true
         do {
-            let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: danmakuID)
+            let strategy = selectedSource == "bili" ? "seg.so" : ""
+            let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: danmakuID, strategy: strategy)
             engine.load(resp.danmus)
             statusMessage = "已加载 \(resp.count) 条弹幕"
         } catch {
             statusMessage = error.localizedDescription
         }
+        isLoadingDanmaku = false
+    }
+
+    private func refreshDanmaku() async {
+        guard !danmakuID.isEmpty else { return }
+        isLoadingDanmaku = true
+        do {
+            let strategy = selectedSource == "bili" ? "seg.so" : ""
+            let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: danmakuID, strategy: strategy, refresh: true)
+            engine.load(resp.danmus)
+            statusMessage = "已刷新 \(resp.count) 条弹幕"
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+        isLoadingDanmaku = false
     }
 
     // MARK: - Subtitle Parsing & Actions
