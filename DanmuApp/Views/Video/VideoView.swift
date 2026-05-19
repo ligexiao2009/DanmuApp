@@ -38,6 +38,7 @@ struct VideoView: View {
     @State private var showSubtitlePicker = false
     @State private var serverSubtitles: [String] = []
     @State private var isLoadingSubtitles = false
+    @AppStorage("subtitleMemory") private var subtitleMemoryData = "{}"
     @State private var currentSubtitleName = ""
     @State private var danmakuHidden = false
     @State private var subtitleEntries: [SubtitleEntry] = []
@@ -634,6 +635,10 @@ struct VideoView: View {
             currentIndex = 0
             statusMessage = "已加载 \(playlist.count) 个视频"
             if !playlist.isEmpty { playItem(at: 0) }
+            let mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
+            if let saved = mem[dir], !saved.isEmpty {
+                loadSubtitle(saved)
+            }
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -641,7 +646,9 @@ struct VideoView: View {
 
     private func playItem(at index: Int) {
         guard index < playlist.count else { return }
-        saveProgress()
+        if let old = currentItem, currentTime > 0 {
+            saveProgress(item: old, time: currentTime)
+        }
         engine.reset()
         currentIndex = index
         let item = playlist[index]
@@ -726,8 +733,17 @@ struct VideoView: View {
     }
 
     // ✨ 修复：字幕获取与解析状态必须通过 MainActor 通知主线程 UI
+    private func saveSubtitleMemory(folder: String) {
+        var mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
+        mem[folder] = currentSubtitleName
+        if let data = try? JSONEncoder().encode(mem), let str = String(data: data, encoding: .utf8) {
+            subtitleMemoryData = str
+        }
+    }
+
     private func loadSubtitle(_ name: String) {
         currentSubtitleName = name
+        saveSubtitleMemory(folder: selectedFolder)
         Task {
             do {
                 let url = APIService.videoStreamURL(name: name)
@@ -889,13 +905,11 @@ struct VideoView: View {
                 switch state {
                 case .paused, .error, .playedToTheEnd:
                     self.isPlaying = false
-                case .readyToPlay, .bufferFinished:
-                    self.isPlaying = true
                 case .readyToPlay:
                     self.isPlaying = true
-                    // 🚀 MKV 安全修复：就绪后再读取历史进度
+                    // Resume saved progress
                     if let item = self.currentItem {
-                        let id = item.relativePath + "__" + String(item.name.hashValue)
+                        let id = item.relativePath
                         Task {
                             if let p = try? await APIService.shared.fetchProgress(id: id), p.time > 0 {
                                 await MainActor.run {
@@ -904,6 +918,8 @@ struct VideoView: View {
                             }
                         }
                     }
+                case .bufferFinished:
+                    self.isPlaying = true
                 default:
                     break
                 }
@@ -947,10 +963,14 @@ struct VideoView: View {
         if let obs = videoEndedObserver { NotificationCenter.default.removeObserver(obs) }
     }
 
+    private func saveProgress(item: VideoItem, time: Double) {
+        guard time > 0 else { return }
+        Task { try? await APIService.shared.saveProgress(id: item.relativePath, time: time) }
+    }
+
     private func saveProgress() {
         guard let item = currentItem, currentTime > 0 else { return }
-        let id = item.relativePath + "__" + String(item.name.hashValue)
-        Task { try? await APIService.shared.saveProgress(id: id, time: currentTime) }
+        saveProgress(item: item, time: currentTime)
     }
 
     // Detect IDs...

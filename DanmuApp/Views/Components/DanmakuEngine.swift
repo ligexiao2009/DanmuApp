@@ -2,7 +2,9 @@ import SwiftUI
 
 @MainActor
 final class DanmakuEngine: ObservableObject {
-    @Published var config = DanmakuConfig()
+    @Published var config = DanmakuConfig.load() {
+        didSet { config.save() }
+    }
 
     private var danmus: [DanmakuItem] = []
     private var danmuIndex: Int = 0

@@ -67,10 +67,25 @@ struct APIResponse<T: Decodable>: Decodable {
     let message: String
 }
 
-struct DanmakuConfig {
+struct DanmakuConfig: Codable {
     var speed: Double = 18
     var area: Int = 25
     var offset: Double = 0
     var fontSize: Double = 24
     var opacity: Double = 1.0
+
+    private static let udKey = "danmakuConfig"
+
+    static func load() -> DanmakuConfig {
+        guard let data = UserDefaults.standard.data(forKey: udKey),
+              let cfg = try? JSONDecoder().decode(Self.self, from: data)
+        else { return DanmakuConfig() }
+        return cfg
+    }
+
+    func save() {
+        if let data = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(data, forKey: Self.udKey)
+        }
+    }
 }
