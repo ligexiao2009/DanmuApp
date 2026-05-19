@@ -3,8 +3,10 @@ import CoreMedia
 import KSPlayer
 
 struct VideoView: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var engine = DanmakuEngine()
     @State private var playerLayer: KSPlayerLayer?
+    @State private var showPlaylistSheet = false
     @State private var currentTime: Double = 0.0
     @State private var playerDuration: Double = 0.0
     @State private var isPlaying: Bool = false
@@ -66,14 +68,14 @@ struct VideoView: View {
     var body: some View {
         GeometryReader { geo in
             let isLandscape = geo.size.width > geo.size.height
+            let isCompact = sizeClass == .compact
             let sidebarWidth: CGFloat = 360
 
             HStack(spacing: 0) {
-                // 全屏时，播放器区域直接占满全屏
                 playerArea(isLandscape: isLandscape)
                     .ignoresSafeArea(edges: isFullscreen ? .all : [])
-                
-                if isLandscape && showSidebar && !isFullscreen {
+
+                if isLandscape && showSidebar && !isFullscreen && !isCompact {
                     sidebarView
                         .frame(width: sidebarWidth)
                         .transition(.move(edge: .trailing))
@@ -82,7 +84,7 @@ struct VideoView: View {
             .ignoresSafeArea(edges: (isLandscape || isFullscreen) ? .bottom : [])
             .safeAreaPadding(.top, (isLandscape && !isFullscreen) ? 8 : 0)
             .overlay(alignment: .bottom) {
-                if !isLandscape && !isFullscreen { portraitControls }
+                if (!isLandscape || isCompact) && !isFullscreen { portraitControls }
             }
         }
         .onAppear { Task { await loadFolders(); setupTimeObserver() } }
@@ -105,6 +107,18 @@ struct VideoView: View {
         }
         .sheet(isPresented: $showSubtitlePicker) {
             subtitlePickerSheet
+        }
+        .sheet(isPresented: $showPlaylistSheet) {
+            NavigationStack {
+                playlistList
+                    .navigationTitle("播放列表")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("关闭") { showPlaylistSheet = false }
+                        }
+                    }
+            }
         }
         .toolbar(isFullscreen ? .hidden : .visible, for: .tabBar)
     }
@@ -155,7 +169,7 @@ struct VideoView: View {
                                 .shadow(radius: 2)
                         }
                     }
-                    if isLandscape && !showSidebar {
+                    if isLandscape && !showSidebar && sizeClass != .compact {
                         Button {
                             withAnimation { showSidebar.toggle() }
                         } label: {
@@ -609,6 +623,12 @@ struct VideoView: View {
                         Button { withAnimation { isFullscreen = true } } label: {
                             Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.subheadline)
                         }.buttonStyle(.bordered)
+
+                        if sizeClass == .compact {
+                            Button { showPlaylistSheet = true } label: {
+                                Label("列表", systemImage: "list.bullet").font(.subheadline)
+                            }.buttonStyle(.bordered)
+                        }
                     }
                 }
 
@@ -671,8 +691,8 @@ struct VideoView: View {
                     Button {
                         Task {
                             isLoadingVideos = true
-                            await switchFolder(f.path)
                             selectedFolder = f.path
+                            await switchFolder(f.path)
                             isLoadingVideos = false
                             showFolderPicker = false
                         }
@@ -791,9 +811,10 @@ struct VideoView: View {
             playlist = names.map { name in
                 VideoItem(name: name, relativePath: name, videoId: detectVideoID(name), thumbnailName: name, isRemote: true)
             }
-            currentIndex = 0
+            let savedIndex = loadPlayIndex(folder: dir) ?? 0
+            let startIndex = savedIndex < playlist.count ? savedIndex : 0
             statusMessage = "已加载 \(playlist.count) 个视频"
-            if !playlist.isEmpty { playItem(at: 0) }
+            if !playlist.isEmpty { playItem(at: startIndex) }
             let mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
             if let saved = mem[dir], !saved.isEmpty {
                 loadSubtitle(saved)
@@ -808,6 +829,8 @@ struct VideoView: View {
         if let old = currentItem, currentTime > 0 {
             saveProgress(item: old, time: currentTime)
         }
+        // Remember this index for the current folder
+        savePlayIndex(folder: selectedFolder, index: index)
         engine.reset()
         currentIndex = index
         let item = playlist[index]
@@ -905,6 +928,24 @@ struct VideoView: View {
         } catch {
             serverSubtitles = []
         }
+    }
+
+    private func savePlayIndex(folder: String, index: Int) {
+        let key = "playIndexMemory"
+        var mem = [String: Int]()
+        if let data = UserDefaults.standard.data(forKey: key) {
+            mem = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+        }
+        mem[folder] = index
+        if let data = try? JSONEncoder().encode(mem) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private func loadPlayIndex(folder: String) -> Int? {
+        let key = "playIndexMemory"
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return (try? JSONDecoder().decode([String: Int].self, from: data))?[folder]
     }
 
     private func saveSubtitleMemory(folder: String) {

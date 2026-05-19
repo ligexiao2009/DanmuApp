@@ -35,7 +35,7 @@ packages:
       path: DanmuApp/Info.plist
       properties:
         CFBundleName: DanmuApp
-        CFBundleDisplayName: 弹幕播放器
+        CFBundleDisplayName: Danmu
         CFBundleVersion: "1"
         CFBundleShortVersionString: "1.0"
         UILaunchScreen: ""
