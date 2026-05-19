@@ -1,9 +1,10 @@
 import SwiftUI
-import AVKit
+import CoreMedia
+import KSPlayer
 
 struct VideoView: View {
     @StateObject private var engine = DanmakuEngine()
-    @State private var player = AVPlayer()
+    @State private var playerLayer: KSPlayerLayer?
     @State private var currentTime: Double = 0.0
     @State private var playerDuration: Double = 0.0
     @State private var isPlaying: Bool = false
@@ -12,8 +13,8 @@ struct VideoView: View {
     @State private var showControls: Bool = true
     @State private var controlsTimer: Task<Void, Never>?
     @State private var isFullscreen: Bool = false
+    private var playerDelegate = PlayerDelegate()
     @State private var timeObserver: Any?
-    @State private var durationObserver: NSKeyValueObservation?
     @State private var lastCurrentTime: Double = 0
     @State private var progressSaveTimer: Timer?
     @State private var videoEndedObserver: Any?
@@ -43,21 +44,25 @@ struct VideoView: View {
             let sidebarWidth: CGFloat = 360
 
             HStack(spacing: 0) {
+                // 全屏时，播放器区域直接占满全屏
                 playerArea(isLandscape: isLandscape)
-                if isLandscape && showSidebar {
+                    .ignoresSafeArea(edges: isFullscreen ? .all : [])
+                
+                if isLandscape && showSidebar && !isFullscreen {
                     sidebarView
                         .frame(width: sidebarWidth)
                         .transition(.move(edge: .trailing))
                 }
             }
-            .ignoresSafeArea(edges: isLandscape ? .bottom : [])
-            .safeAreaPadding(.top, isLandscape ? 8 : 0)
+            // 动态处理安全区域
+            .ignoresSafeArea(edges: (isLandscape || isFullscreen) ? .bottom : [])
+            .safeAreaPadding(.top, (isLandscape && !isFullscreen) ? 8 : 0)
             .overlay(alignment: .bottom) {
-                if !isLandscape { portraitControls }
+                if !isLandscape && !isFullscreen { portraitControls }
             }
         }
         .onAppear { Task { await loadFolders(); setupTimeObserver() } }
-        .onDisappear { player.pause(); isPlaying = false; saveProgress(); removeTimeObserver(); controlsTimer?.cancel() }
+        .onDisappear { playerLayer?.pause(); isPlaying = false; saveProgress(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
             DanmakuSettings(config: $engine.config)
         }
@@ -65,95 +70,161 @@ struct VideoView: View {
             folderPickerSheet
                 .onAppear { Task { await loadFolders() } }
         }
-        .fullScreenCover(isPresented: $isFullscreen) {
-            FullscreenPlayerView(
-                player: player,
-                engine: engine,
-                currentTime: currentTime,
-                playerDuration: playerDuration,
-                isPlaying: $isPlaying,
-                seekTarget: $seekTarget,
-                isDraggingSlider: $isDraggingSlider,
-                isFullscreen: $isFullscreen
-            )
-        }
     }
 
     // MARK: - Player Area
 
     private func playerArea(isLandscape: Bool) -> some View {
         ZStack {
-            VideoPlayerView(player: .constant(player))
+            VideoPlayerView(playerLayer: $playerLayer)
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
-            if showControls {
-                VStack {
-                    Spacer()
-                    VStack(spacing: 4) {
-                        if isDraggingSlider {
-                            Text(formatTime(seekTarget))
-                                .font(.title3.bold()).monospacedDigit()
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 12).padding(.vertical, 6)
-                                .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
-                                .transition(.opacity.combined(with: .scale(scale: 1.1)))
-                        }
-                        Slider(
-                            value: $seekTarget,
-                            in: 0...max(playerDuration, 1),
-                            onEditingChanged: { editing in
-                                isDraggingSlider = editing
-                                if !editing {
-                                    Task { await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600)) }
-                                }
-                            }
-                        )
-                        .tint(.indigo)
-                        HStack {
-                            Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
-                            Spacer()
-                            Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial.opacity(0.6))
-                    .transition(.opacity)
-                }
-                .transition(.opacity)
+            // 控制层设计
+            if isFullscreen {
+                fullscreenControlsView
+            } else if showControls {
+                normalControlsView
             }
         }
         .background(.black)
         .animation(.easeInOut(duration: 0.3), value: showControls)
         .overlay(alignment: .topTrailing) {
-            VStack(spacing: 8) {
-                if showControls || (isLandscape && showSidebar) {
-                    Button { isFullscreen = true } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.title3)
-                            .padding(8)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+            if !isFullscreen {
+                VStack(spacing: 8) {
+                    if (showControls || (isLandscape && showSidebar)) {
+                        Button { withAnimation { isFullscreen = true } } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.title3)
+                                .padding(8)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    if isLandscape && !showSidebar {
+                        Button {
+                            withAnimation { showSidebar.toggle() }
+                        } label: {
+                            Image(systemName: "sidebar.left")
+                                .font(.title3)
+                                .padding(10)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
                     }
                 }
-                if isLandscape && !showSidebar {
-                    Button {
-                        withAnimation { showSidebar.toggle() }
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                            .font(.title3)
-                            .padding(10)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
+                .padding(12)
             }
-            .padding(12)
         }
         .onTapGesture {
-            if isPlaying { player.pause() } else { player.play() }
-            showControls = true
-            resetControlsTimer()
+            withAnimation {
+                showControls.toggle()
+            }
+            if showControls {
+                resetControlsTimer()
+            }
+        }
+        .statusBarHidden(isFullscreen)
+    }
+    
+    // MARK: - Normal Controls View
+    
+    private var normalControlsView: some View {
+        VStack {
+            Spacer()
+            VStack(spacing: 4) {
+                if isDraggingSlider {
+                    Text(formatTime(seekTarget))
+                        .font(.title3.bold()).monospacedDigit()
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
+                        .transition(.opacity.combined(with: .scale(scale: 1.1)))
+                }
+                Slider(
+                    value: $seekTarget,
+                    in: 0...max(playerDuration, 1),
+                    onEditingChanged: { editing in
+                        isDraggingSlider = editing
+                        if !editing {
+                            playerLayer?.seek(time: seekTarget, autoPlay: true) { _ in }
+                        }
+                    }
+                )
+                .tint(.indigo)
+                HStack {
+                    Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
+                    Spacer()
+                    Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial.opacity(0.6))
+        }
+        .transition(.opacity)
+    }
+
+    // MARK: - Fullscreen Controls View
+    
+    private var fullscreenControlsView: some View {
+        Group {
+            if showControls {
+                ZStack {
+                    // 全屏退出按钮（右上角）
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button {
+                                withAnimation { isFullscreen = false }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title2).foregroundStyle(.white)
+                                    .padding(10).background(.ultraThinMaterial).clipShape(Circle())
+                            }
+                        }
+                        .padding(16)
+                        Spacer()
+                    }
+                    
+                    // 全屏中央播放/暂停按钮
+                    Button {
+                        isPlaying ? playerLayer?.pause() : playerLayer?.play()
+                    } label: {
+                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+
+                    // 全屏底部进度条
+                    VStack {
+                        Spacer()
+                        VStack(spacing: 4) {
+                            if isDraggingSlider {
+                                Text(formatTime(seekTarget))
+                                    .font(.title3.bold()).monospacedDigit().foregroundStyle(.white)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
+                            }
+                            Slider(value: $seekTarget, in: 0...max(playerDuration, 1),
+                                onEditingChanged: { editing in
+                                    isDraggingSlider = editing
+                                    if !editing {
+                                        playerLayer?.seek(time: seekTarget, autoPlay: true) { _ in }
+                                    }
+                                }
+                            ).tint(.indigo)
+                            HStack {
+                                Text(formatTime(currentTime)).font(.caption2).monospacedDigit().foregroundColor(.white)
+                                Spacer()
+                                Text(formatTime(playerDuration)).font(.caption2).monospacedDigit().foregroundColor(.white)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(.ultraThinMaterial.opacity(0.6))
+                    }
+                }
+                .transition(.opacity)
+            }
         }
     }
 
@@ -180,7 +251,7 @@ struct VideoView: View {
     private var sidebarView: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // 1. 顶部当前媒体看板 (利用原有的空白区域展示正在播放)
+                // 1. 顶部当前媒体看板
                 if let current = currentItem {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -201,7 +272,7 @@ struct VideoView: View {
                     .background(Color.primary.opacity(0.03))
                 }
 
-                // 2. 弹幕载入与配置面板 (融合菜单，极大瘦身)
+                // 2. 弹幕载入与配置面板
                 VStack(spacing: 12) {
                     HStack(spacing: 8) {
                         Menu {
@@ -237,7 +308,7 @@ struct VideoView: View {
                     // 快捷控制流
                     HStack(spacing: 12) {
                         Button {
-                            isPlaying ? player.pause() : player.play()
+                            isPlaying ? playerLayer?.pause() : playerLayer?.play()
                         } label: {
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                 .font(.body)
@@ -276,11 +347,10 @@ struct VideoView: View {
                     .padding(.top, 12)
                     .padding(.bottom, 6)
 
-                // 4. 无缝丝滑滚动列表 (去掉过时分页)
+                // 4. 无缝丝滑滚动列表
                 playlistList
             }
             .background(.ultraThinMaterial)
-            // 原生导航栏注入，将切换目录等按钮规范置顶
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -351,7 +421,7 @@ struct VideoView: View {
                 }
 
                 HStack(spacing: 6) {
-                    Button { isPlaying ? player.pause() : player.play() } label: {
+                    Button { isPlaying ? playerLayer?.pause() : playerLayer?.play() } label: {
                         Label(isPlaying ? "暂停" : "播放", systemImage: isPlaying ? "pause.fill" : "play.fill").font(.caption)
                     }
                     .buttonStyle(.borderedProminent).tint(isPlaying ? .orange : .indigo)
@@ -361,7 +431,7 @@ struct VideoView: View {
                     Button { engine.seek(to: currentTime) } label: {
                         Label("同步", systemImage: "arrow.triangle.2.circlepath").font(.caption)
                     }.buttonStyle(.bordered)
-                    Button { isFullscreen = true } label: {
+                    Button { withAnimation { isFullscreen = true } } label: {
                         Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.caption)
                     }.buttonStyle(.bordered)
                     Spacer()
@@ -525,35 +595,46 @@ struct VideoView: View {
         let item = playlist[index]
         lastCurrentTime = 0
         currentTime = 0
+        seekTarget = 0
+        playerDuration = 0
 
-        player.pause()
-        player.automaticallyWaitsToMinimizeStalling = true
-        let url = APIService.shared.videoStreamURL(name: item.relativePath)
-        let playerItem = AVPlayerItem(url: url)
-        playerItem.preferredForwardBufferDuration = 30
-        player.replaceCurrentItem(with: playerItem)
-        player.play()
+        playerLayer?.pause()
+        let url = APIService.videoStreamURL(name: item.relativePath)
+        let layer = KSPlayerLayer(url: url, options: KSOptions(), delegate: playerDelegate)
+        playerLayer = layer
+        layer.play()
         isPlaying = true
 
-        durationObserver?.invalidate()
-        durationObserver = playerItem.observe(\.duration, options: [.new]) { item, _ in
-            let d = item.duration.seconds
-            if d.isFinite, d > 0 {
-                Task { @MainActor in playerDuration = d }
-            }
+        // Auto-detect video ID and source from filename
+        let name = item.name
+        let bv = detectBVID(name)
+        let tencentVid = detectTencentVID(name)
+        let iqiyiId = detectIqiyiTVID(name)
+
+        if let v = tencentVid, bv == nil {
+            selectedSource = "qq"
+            danmakuID = v
+        } else if let v = bv {
+            selectedSource = "bili"
+            danmakuID = v
+        } else if let v = iqiyiId {
+            selectedSource = "iqiyi"
+            danmakuID = v
+        } else if let v = bv ?? tencentVid ?? iqiyiId {
+            danmakuID = v
+        } else {
+            danmakuID = item.videoId ?? ""
         }
 
-        let vid = detectVideoID(item.name)
-        danmakuID = vid ?? ""
-        if vid != nil, !danmakuID.isEmpty {
-            Task { await autoLoadDanmaku(id: danmakuID) }
+        if !danmakuID.isEmpty {
+            Task { await loadDanmaku() }
         }
 
         Task {
             let id = item.relativePath + "__" + String(item.name.hashValue)
             if let p = try? await APIService.shared.fetchProgress(id: id) {
                 let time = CMTime(seconds: p.time, preferredTimescale: 600)
-                await player.seek(to: time)
+                playerLayer?.seek(time: time.seconds, autoPlay: true) { _ in }
             }
         }
     }
@@ -606,18 +687,40 @@ struct VideoView: View {
         return nil
     }
 
+    private func detectBVID(_ name: String) -> String? {
+        let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+        if let m = try? NSRegularExpression(pattern: "BV[0-9A-Za-z]+").firstMatch(in: base, range: NSRange(0..<base.count)),
+           let r = Range(m.range, in: base) { return String(base[r]) }
+        return nil
+    }
+
+    private func detectTencentVID(_ name: String) -> String? {
+        let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+        if let m = try? NSRegularExpression(pattern: "(?:^|[_-])([a-z][a-z0-9]{9,11})(?:$|[_.-])").firstMatch(in: base, range: NSRange(0..<base.count)),
+           let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
+        return nil
+    }
+
+    private func detectIqiyiTVID(_ name: String) -> String? {
+        let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+        if let m = try? NSRegularExpression(pattern: "(\\d{9,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
+           let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
+        return nil
+    }
+
     private func setupTimeObserver() {
-        let interval = CMTime(value: 1, timescale: 10)
-        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
-            let t = time.seconds
-            Task { @MainActor in
-                if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
-                self.lastCurrentTime = t
-                self.currentTime = t
-                if !self.isDraggingSlider { self.seekTarget = t }
-                self.isPlaying = self.player.rate != 0
-            }
+        playerDelegate.onStateChange = { [self] state in
+            self.isPlaying = state != .paused && state != .playedToTheEnd && state != .error
         }
+        playerDelegate.onTimeChange = { [self] current, total in
+            let t = current
+            if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
+            self.lastCurrentTime = t
+            self.currentTime = t
+            self.playerDuration = total
+            if !self.isDraggingSlider { self.seekTarget = t }
+        }
+        playerLayer?.delegate = playerDelegate
 
         videoEndedObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
@@ -639,14 +742,31 @@ struct VideoView: View {
     }
 
     private func removeTimeObserver() {
-        if let obs = timeObserver { player.removeTimeObserver(obs) }
-        durationObserver?.invalidate()
         progressSaveTimer?.invalidate()
         if let obs = videoEndedObserver { NotificationCenter.default.removeObserver(obs) }
     }
+
+    // MARK: - KSPlayerLayerDelegate
+
+    func player(layer: KSPlayerLayer, state: KSPlayerState) {
+        isPlaying = state != .paused && state != .playedToTheEnd && state != .error
+    }
+
+    func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {
+        let t = currentTime
+        if abs(t - lastCurrentTime) > 0.5 { engine.seek(to: t) }
+        lastCurrentTime = t
+        self.currentTime = t
+        playerDuration = totalTime
+        if !isDraggingSlider { seekTarget = t }
+    }
+
+    func player(layer: KSPlayerLayer, finish error: Error?) {}
+
+    func player(layer: KSPlayerLayer, bufferedCount: Int, consumeTime: TimeInterval) {}
 }
 
-// MARK: - Playlist Row (Modernized Style)
+// MARK: - Playlist Row
 
 struct PlaylistRow: View {
     let item: VideoItem
@@ -654,7 +774,6 @@ struct PlaylistRow: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
-    // 后缀清洗逻辑：移除文件名中的多余脏数据
     private var cleanedDisplayName: String {
         var name = item.name
         let suffixesToRemove = [".mp4", ".mkv", ".mov", ".avi", "_4K", "_1080P", "_4k", "_1080p"]
@@ -666,8 +785,7 @@ struct PlaylistRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 标准 16:9 比例缩略图
-            AsyncImage(url: APIService.shared.fetchThumbnailURL(name: item.thumbnailName)) { phase in
+            AsyncImage(url: APIService.fetchThumbnailURL(name: item.thumbnailName)) { phase in
                 switch phase {
                 case .success(let img):
                     img.resizable().aspectRatio(contentMode: .fill)
@@ -700,109 +818,21 @@ struct PlaylistRow: View {
     }
 }
 
-// MARK: - Fullscreen Player
+// MARK: - Player Delegate
 
-struct FullscreenPlayerView: View {
-    let player: AVPlayer
-    @ObservedObject var engine: DanmakuEngine
-    let currentTime: Double
-    let playerDuration: Double
-    @Binding var isPlaying: Bool
-    @Binding var seekTarget: Double
-    @Binding var isDraggingSlider: Bool
-    @Binding var isFullscreen: Bool
+final class PlayerDelegate: NSObject, KSPlayerLayerDelegate {
+    var onStateChange: ((KSPlayerState) -> Void)?
+    var onTimeChange: ((TimeInterval, TimeInterval) -> Void)?
 
-    @State private var showControls: Bool = true
-    @State private var controlsTimer: Task<Void, Never>?
-
-    var body: some View {
-        ZStack {
-            VideoPlayerView(player: .constant(player))
-            DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
-
-            VStack {
-                HStack {
-                    Spacer()
-                    Button {
-                        isFullscreen = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.white)
-                            .padding(10)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                Spacer()
-            }
-            .opacity(showControls ? 1 : 0)
-
-            if showControls {
-                VStack {
-                    Spacer()
-                    VStack(spacing: 4) {
-                        if isDraggingSlider {
-                            Text(formatTime(seekTarget))
-                                .font(.title3.bold()).monospacedDigit()
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 12).padding(.vertical, 6)
-                                .background(.indigo, in: RoundedRectangle(cornerRadius: 8))
-                                .transition(.opacity.combined(with: .scale(scale: 1.1)))
-                        }
-                        Slider(
-                            value: $seekTarget,
-                            in: 0...max(playerDuration, 1),
-                            onEditingChanged: { editing in
-                                isDraggingSlider = editing
-                                if !editing {
-                                    Task { await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600)) }
-                                }
-                            }
-                        )
-                        .tint(.indigo)
-                        HStack {
-                            Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
-                            Spacer()
-                            Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.ultraThinMaterial.opacity(0.6))
-                }
-                .transition(.opacity)
-            }
-        }
-        .background(.black)
-        .animation(.easeInOut(duration: 0.3), value: showControls)
-        .ignoresSafeArea()
-        .statusBarHidden()
-        .onTapGesture {
-            if isPlaying { player.pause() } else { player.play() }
-            showControls = true
-            resetControlsTimer()
-        }
-        .onAppear { resetControlsTimer() }
+    func player(layer: KSPlayerLayer, state: KSPlayerState) {
+        onStateChange?(state)
     }
 
-    private func formatTime(_ seconds: Double) -> String {
-        guard seconds.isFinite, seconds >= 0 else { return "--:--" }
-        let h = Int(seconds) / 3600
-        let m = (Int(seconds) % 3600) / 60
-        let s = Int(seconds) % 60
-        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
-        return String(format: "%02d:%02d", m, s)
+    func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {
+        onTimeChange?(currentTime, totalTime)
     }
 
-    private func resetControlsTimer() {
-        controlsTimer?.cancel()
-        controlsTimer = Task {
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
-            guard !Task.isCancelled else { return }
-            withAnimation { showControls = false }
-        }
-    }
+    func player(layer: KSPlayerLayer, finish error: Error?) {}
+
+    func player(layer: KSPlayerLayer, bufferedCount: Int, consumeTime: TimeInterval) {}
 }

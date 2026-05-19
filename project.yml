@@ -17,6 +17,15 @@ targets:
     platform: iOS
     sources:
       - DanmuApp
+    dependencies:
+      - package: KSPlayer
+      - package: FFmpegKit
+
+packages:
+  KSPlayer:
+    path: /Users/yangyang/ios/KSPlayer
+  FFmpegKit:
+    path: /Users/yangyang/git/FFmpegKit
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "2"

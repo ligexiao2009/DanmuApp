@@ -81,7 +81,7 @@ struct LiveView: View {
 
     private var playerArea: some View {
         ZStack {
-            VideoPlayerView(player: .constant(player))
+            AVPlayerView(player: player)
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
             if showControls {
@@ -492,7 +492,7 @@ struct LiveFullscreenView: View {
 
     var body: some View {
         ZStack {
-            VideoPlayerView(player: .constant(player))
+            AVPlayerView(player: player)
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
             VStack {

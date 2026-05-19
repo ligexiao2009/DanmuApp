@@ -16,7 +16,12 @@ struct DanmakuItem: Identifiable, Decodable {
         time = try c.decode(Double.self, forKey: .time)
         text = try c.decode(String.self, forKey: .text)
         color = try c.decodeIfPresent(String.self, forKey: .color)
-        ctime = try c.decodeIfPresent(Double.self, forKey: .ctime)
+        // ctime can be String or Double from different sources
+        if let s = try? c.decodeIfPresent(String.self, forKey: .ctime) {
+            ctime = Double(s)
+        } else {
+            ctime = try c.decodeIfPresent(Double.self, forKey: .ctime)
+        }
     }
 
     init(time: Double, text: String, color: String? = nil) {

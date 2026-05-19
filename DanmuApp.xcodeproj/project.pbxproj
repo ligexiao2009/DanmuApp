@@ -8,8 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		109F65DCB30682185004B2BC /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */; };
+		12ACBCB305BB35B1235B1C1E /* KSPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = D99B700439590BE654C986FB /* KSPlayer */; };
 		3DC60C0C98B8EA445719F506 /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C429D807ACC2032F4FE4A14 /* APIService.swift */; };
 		4AF35998BCCC42E2608742FB /* VideoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */; };
+		545E2C6B722634B2B91E9634 /* FFmpegKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F10EC416CCD41AFF41DB519 /* FFmpegKit */; };
 		5F49DC254C68362B05C94BA8 /* DanmakuEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */; };
 		7E2D38AE8A9442DADFA2F49A /* DanmakuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */; };
 		8F93661B36DFBEDCA4F52F73 /* DanmakuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */; };
@@ -20,6 +22,7 @@
 		EC0A1E7A0D4E1BC71B6CF08D /* DanmakuSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6814C9936927837AD89BF78D /* DanmakuSettings.swift */; };
 		EE79F40975DC9885EA762691 /* DanmuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F01CAD37CB1911F6400BD3 /* DanmuApp.swift */; };
 		F9FBF96096B95F6B28D790BA /* LiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0B64C44CCEB0BA21961A2C /* LiveView.swift */; };
+		FEDD2D739241A47268FD7FA5 /* AVPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766F8AF9617C25DEF8EDBB24 /* AVPlayerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,17 +31,32 @@
 		5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuItem.swift; sourceTree = "<group>"; };
 		6814C9936927837AD89BF78D /* DanmakuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuSettings.swift; sourceTree = "<group>"; };
 		74070FA8A39D27C8351E5E5D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		766F8AF9617C25DEF8EDBB24 /* AVPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVPlayerView.swift; sourceTree = "<group>"; };
 		76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuEngine.swift; sourceTree = "<group>"; };
 		7D83A009F732D0750B37C10E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoItem.swift; sourceTree = "<group>"; };
 		8C429D807ACC2032F4FE4A14 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
+		B210783031E26E195CE68165 /* FFmpegKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FFmpegKit; path = ../../git/FFmpegKit; sourceTree = SOURCE_ROOT; };
 		BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuOverlay.swift; sourceTree = "<group>"; };
 		BF0B64C44CCEB0BA21961A2C /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
 		C76EF1CA9F5B88A08074DA7A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CE64A8CE59EA4A6A4D9FFC3A /* KSPlayer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = KSPlayer; path = ../KSPlayer; sourceTree = SOURCE_ROOT; };
 		DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
 		E340044D2C574FF970813134 /* DanmuApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DanmuApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F76BF5B682CA45B9BB027E0A /* VideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FD4A78AB72BCEE919D32EA3C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				12ACBCB305BB35B1235B1C1E /* KSPlayer in Frameworks */,
+				545E2C6B722634B2B91E9634 /* FFmpegKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1068240EACCA1C64CDB3C8BC /* Models */ = {
@@ -75,6 +93,7 @@
 		30D38D70CE335566493EB0DA /* Player */ = {
 			isa = PBXGroup;
 			children = (
+				766F8AF9617C25DEF8EDBB24 /* AVPlayerView.swift */,
 				DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */,
 			);
 			path = Player;
@@ -120,8 +139,18 @@
 			isa = PBXGroup;
 			children = (
 				106EAAD02F5F6918838B2A84 /* DanmuApp */,
+				BE20A5EBFEE21A357D9F79E5 /* Packages */,
 				5D84ABEBA59018DB0F2B4EBE /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		BE20A5EBFEE21A357D9F79E5 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				B210783031E26E195CE68165 /* FFmpegKit */,
+				CE64A8CE59EA4A6A4D9FFC3A /* KSPlayer */,
+			);
+			name = Packages;
 			sourceTree = "<group>";
 		};
 		C49E982B14F74037F71EA0E1 /* Home */ = {
@@ -151,6 +180,7 @@
 			buildPhases = (
 				3EAA7181E313F7B0336F4E0C /* Sources */,
 				C3A6131B29D291D8D15F5742 /* Resources */,
+				FD4A78AB72BCEE919D32EA3C /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -158,6 +188,8 @@
 			);
 			name = DanmuApp;
 			packageProductDependencies = (
+				D99B700439590BE654C986FB /* KSPlayer */,
+				0F10EC416CCD41AFF41DB519 /* FFmpegKit */,
 			);
 			productName = DanmuApp;
 			productReference = E340044D2C574FF970813134 /* DanmuApp.app */;
@@ -181,6 +213,10 @@
 			);
 			mainGroup = A4494572FDEB3E5F1CA87AC7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4B83BF132FE86B236CB3C46E /* XCLocalSwiftPackageReference "/Users/yangyang/git/FFmpegKit" */,
+				0B5D33854C4D68A5BCA141A2 /* XCLocalSwiftPackageReference "/Users/yangyang/ios/KSPlayer" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5D84ABEBA59018DB0F2B4EBE /* Products */;
 			projectDirPath = "";
@@ -208,6 +244,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3DC60C0C98B8EA445719F506 /* APIService.swift in Sources */,
+				FEDD2D739241A47268FD7FA5 /* AVPlayerView.swift in Sources */,
 				B9BA20B1DF1045ECF399A95D /* ContentView.swift in Sources */,
 				5F49DC254C68362B05C94BA8 /* DanmakuEngine.swift in Sources */,
 				7E2D38AE8A9442DADFA2F49A /* DanmakuItem.swift in Sources */,
@@ -237,9 +274,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos ipados";
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = 2;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -255,9 +290,7 @@
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos ipados";
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = 2;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -408,6 +441,28 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0B5D33854C4D68A5BCA141A2 /* XCLocalSwiftPackageReference "/Users/yangyang/ios/KSPlayer" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = /Users/yangyang/ios/KSPlayer;
+		};
+		4B83BF132FE86B236CB3C46E /* XCLocalSwiftPackageReference "/Users/yangyang/git/FFmpegKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = /Users/yangyang/git/FFmpegKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0F10EC416CCD41AFF41DB519 /* FFmpegKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FFmpegKit;
+		};
+		D99B700439590BE654C986FB /* KSPlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KSPlayer;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 10696F8286098734F70A255F /* Project object */;
 }

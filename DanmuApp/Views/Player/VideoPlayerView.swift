@@ -1,33 +1,33 @@
 import SwiftUI
-import AVKit
+import KSPlayer
 
 struct VideoPlayerView: UIViewRepresentable {
-    @Binding var player: AVPlayer?
+    @Binding var playerLayer: KSPlayerLayer?
 
-    func makeUIView(context: Context) -> PlayerUIView {
-        let view = PlayerUIView()
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .black
         return view
     }
 
-    func updateUIView(_ uiView: PlayerUIView, context: Context) {
-        if uiView.player !== player { uiView.player = player }
-    }
-}
-
-final class PlayerUIView: UIView {
-    var player: AVPlayer? {
-        get { playerLayer.player }
-        set { playerLayer.player = newValue }
-    }
-
-    override class var layerClass: AnyClass { AVPlayerLayer.self }
-    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .black
-        playerLayer.videoGravity = .resizeAspect
+    func updateUIView(_ uiView: UIView, context: Context) {
+        guard let layer = playerLayer, let playerView = layer.player.view else { return }
+        // Always re-attach video view to current container
+        if playerView.superview !== uiView {
+            uiView.subviews.forEach { $0.removeFromSuperview() }
+            playerView.translatesAutoresizingMaskIntoConstraints = false
+            uiView.addSubview(playerView)
+            NSLayoutConstraint.activate([
+                playerView.topAnchor.constraint(equalTo: uiView.topAnchor),
+                playerView.leadingAnchor.constraint(equalTo: uiView.leadingAnchor),
+                playerView.bottomAnchor.constraint(equalTo: uiView.bottomAnchor),
+                playerView.trailingAnchor.constraint(equalTo: uiView.trailingAnchor),
+            ])
+        }
     }
 
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func dismantleUIView(_ uiView: UIView, coordinator: ()) {
+        // Don't remove the video view when SwiftUI disposes container
+        // It will be re-attached by the next updateUIView call
+    }
 }

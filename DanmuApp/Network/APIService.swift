@@ -2,16 +2,21 @@ import Foundation
 
 actor APIService {
     static let shared = APIService()
-    private let baseURL = "http://YangdeMacBook-Air.local:5001"
-    private let decoder = JSONDecoder()
-    private let session = URLSession(configuration: .default)
+    private static let baseURL = "http://YangdeMacBook-Air.local:5001"
+    private let decoder: JSONDecoder
+    private let session: URLSession
 
-    nonisolated func fetchThumbnailURL(name: String) -> URL {
-        URL(string: "\(baseURL)/api/thumbnail?name=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name)")!
+    init() {
+        decoder = JSONDecoder()
+        session = URLSession(configuration: .default)
     }
 
-    nonisolated func videoStreamURL(name: String) -> URL {
-        URL(string: "\(baseURL)/stream?name=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name)")!
+    static func fetchThumbnailURL(name: String) -> URL {
+        URL(string: "\(Self.baseURL)/api/thumbnail?name=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name)")!
+    }
+
+    static func videoStreamURL(name: String) -> URL {
+        URL(string: "\(Self.baseURL)/stream?name=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name)")!
     }
 
     // MARK: - Danmaku
@@ -80,7 +85,7 @@ actor APIService {
     // MARK: - HTTP core
 
     private func makeURL(_ path: String, params: [String: String] = [:]) -> URL {
-        var components = URLComponents(string: "\(baseURL)\(path)")!
+        var components = URLComponents(string: "\(Self.baseURL)\(path)")!
         if !params.isEmpty {
             components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
