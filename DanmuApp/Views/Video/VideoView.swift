@@ -44,6 +44,15 @@ struct VideoView: View {
     @State private var isLoadingDanmaku = false
     @State private var subtitleEntries: [SubtitleEntry] = []
 
+    // ✨ 动画控制状态变量
+    @State private var syncTrigger = 0
+    @State private var downloadTrigger = 0
+    @State private var refreshTrigger = 0
+    
+    @State private var syncScale: CGFloat = 1.0
+    @State private var downloadScale: CGFloat = 1.0
+    @State private var refreshScale: CGFloat = 1.0
+
     struct SubtitleEntry {
         let start: Double
         let end: Double
@@ -107,23 +116,21 @@ struct VideoView: View {
             VideoPlayerView(playerLayer: $playerLayer)
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
-            // ✨ 优化：独立的全局字幕层！
-            // 把字幕放在控制面板之外，保证即使面板隐藏了，字幕依然丝滑显示
+            // 独立的全局字幕层
             if !currentSubtitleName.isEmpty, let text = currentSubtitleText(at: currentTime), !text.isEmpty {
                 VStack {
                     Spacer()
                     Text(text)
-                        .font(.system(size: isFullscreen ? 26 : 22, weight: .bold)) // 全屏时字体稍微放大
+                        .font(.system(size: isFullscreen ? 26 : 22, weight: .bold))
                         .foregroundColor(.white)
-                        // 经典电影双层阴影特效，无论画面多白都能清晰看清字幕
                         .shadow(color: .black.opacity(0.8), radius: 1, x: 1, y: 1)
                         .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 0)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
-                        .padding(.bottom, showControls ? 80 : 30) // 如果控制栏显示，字幕上浮避开进度条
+                        .padding(.bottom, showControls ? 80 : 30)
                         .animation(.easeInOut(duration: 0.2), value: showControls)
                 }
-                .allowsHitTesting(false) // 让点击事件穿透字幕
+                .allowsHitTesting(false)
             }
 
             // 控制面板层
@@ -145,6 +152,7 @@ struct VideoView: View {
                                 .padding(8)
                                 .background(.ultraThinMaterial)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .shadow(radius: 2)
                         }
                     }
                     if isLandscape && !showSidebar {
@@ -156,10 +164,12 @@ struct VideoView: View {
                                 .padding(10)
                                 .background(.ultraThinMaterial)
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .shadow(radius: 2)
                         }
                     }
                 }
                 .padding(12)
+                .tint(.white)
             }
         }
         .onTapGesture {
@@ -199,16 +209,16 @@ struct VideoView: View {
                 )
                 .tint(.indigo)
                 HStack {
-                    Text(formatTime(currentTime)).font(.caption2).monospacedDigit()
+                    Text(formatTime(currentTime)).font(.caption2).monospacedDigit().foregroundColor(.white)
                     Spacer()
-                    Text(formatTime(playerDuration)).font(.caption2).monospacedDigit()
+                    Text(formatTime(playerDuration)).font(.caption2).monospacedDigit().foregroundColor(.white)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(
                 LinearGradient(colors: [.black.opacity(0.8), .clear], startPoint: .bottom, endPoint: .top)
-            ) // 优化：改用底部渐变黑影，不生硬
+            )
         }
         .transition(.opacity)
     }
@@ -322,28 +332,37 @@ struct VideoView: View {
     private var sidebarView: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // 正在播放区块
                 if let current = currentItem {
                     HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("正在播放")
-                                .font(.caption2).bold()
-                                .foregroundStyle(.indigo)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Image(systemName: "play.tv.fill")
+                                    .font(.caption2)
+                                Text("正在播放")
+                                    .font(.caption2).bold()
+                            }
+                            .foregroundStyle(.indigo)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(.indigo.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
                             
                             Text(current.name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression))
                                 .font(.subheadline).bold()
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
                     }
+                    .padding(16)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.primary.opacity(0.03))
+                    .padding(.top, 12)
                 }
 
-                VStack(spacing: 12) {
-                    HStack(spacing: 6) {
+                // 控制按键面板
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 10) {
                         Menu {
                             ForEach(sources, id: \.0) { src in
                                 Button(src.1) { selectedSource = src.0 }
@@ -351,37 +370,50 @@ struct VideoView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Text(sources.first(where: { $0.0 == selectedSource })?.1 ?? "B站")
-                                Image(systemName: "chevron.down").font(.caption2)
+                                Image(systemName: "chevron.up.chevron.down").font(.caption2)
                             }
                             .font(.subheadline)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                         }
                         .buttonStyle(.plain)
 
-                        TextField("BV号 / ep号 / VID", text: $danmakuID)
+                        TextField("BV号 / ep / VID", text: $danmakuID)
                             .textFieldStyle(.roundedBorder)
-                            .font(.caption)
+                            .font(.subheadline)
                             .submitLabel(.search)
-                            .onSubmit { Task { await loadDanmaku() } }
-                            .frame(maxWidth: 120)
+                            .onSubmit { Task { await triggerDownloadAction() } }
+                            .frame(maxWidth: 130)
 
-                        Button { Task { await loadDanmaku() } } label: {
+                        // ✨ 下载按钮（带组合动画）
+                        Button {
+                            Task { await triggerDownloadAction() }
+                        } label: {
                             Image(systemName: "arrow.down.circle.fill")
-                                .font(.title3)
+                                .font(.title2)
+                                .symbolEffect(.bounce, value: downloadTrigger) // 图标跳跃
                         }
                         .tint(.indigo)
                         .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                        .scaleEffect(downloadScale) // 整体缩放
 
-                        Button { Task { await refreshDanmaku() } } label: {
+                        // ✨ 刷新按钮（带组合动画）
+                        Button {
+                            Task { await triggerRefreshAction() }
+                        } label: {
                             Image(systemName: "arrow.clockwise.circle.fill")
-                                .font(.title3)
+                                .font(.title2)
+                                .symbolEffect(.bounce, value: refreshTrigger) // 图标旋转跳跃
                         }
                         .tint(.orange)
                         .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                        .scaleEffect(refreshScale) // 整体缩放
+                        
+                        Spacer()
                     }
 
+                    // 播放与字幕工具栏
                     HStack(spacing: 12) {
                         Button {
                             isPlaying ? playerLayer?.pause() : playerLayer?.play()
@@ -389,18 +421,24 @@ struct VideoView: View {
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                 .font(.body)
                                 .foregroundColor(isPlaying ? .orange : .indigo)
+                                .frame(width: 20)
                         }
                         
-                        Button { engine.seek(to: currentTime) } label: {
+                        // ✨ 同步按钮（横屏侧边栏，带组合动画）
+                        Button {
+                            triggerSyncAction()
+                        } label: {
                             Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                                .symbolEffect(.bounce, value: syncTrigger) // 图标跳跃
                         }
+                        .scaleEffect(syncScale) // 整体缩放
                         
                         Button { showSettings = true } label: {
                             Label("参数", systemImage: "slider.horizontal.3")
                         }
 
                         Button { Task { await fetchSubtitles() } } label: {
-                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text")
+                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕已载", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill")
                                 .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
                         }
                         .disabled(isLoadingSubtitles)
@@ -409,7 +447,7 @@ struct VideoView: View {
                     }
                     .font(.footnote)
                     .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .controlSize(.regular)
 
                     if !statusMessage.isEmpty {
                         Text(statusMessage)
@@ -418,10 +456,9 @@ struct VideoView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(16)
 
-                Divider()
+                Divider().padding(.horizontal, 16)
 
                 playlistHeader
                     .padding(.horizontal, 16)
@@ -430,14 +467,14 @@ struct VideoView: View {
 
                 playlistList
             }
-            .background(.ultraThinMaterial)
+            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         showFolderPicker = true
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 6) {
                             Image(systemName: "folder.fill")
                                 .foregroundStyle(.indigo)
                             Text(selectedFolderName)
@@ -447,6 +484,8 @@ struct VideoView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding(.vertical, 4)
+                        .padding(.trailing, 8)
                     }
                     .buttonStyle(.plain)
                 }
@@ -457,6 +496,7 @@ struct VideoView: View {
                     } label: {
                         Image(systemName: "sidebar.right")
                             .foregroundColor(.indigo)
+                            .fontWeight(.semibold)
                     }
                 }
             }
@@ -472,74 +512,154 @@ struct VideoView: View {
 
     private var portraitControls: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
+                // 顶部：文件夹选择
                 HStack {
                     Button {
                         showFolderPicker = true
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: "folder.fill").font(.caption)
-                            Text(selectedFolderName).font(.caption).lineLimit(1)
-                            Image(systemName: "chevron.down").font(.caption2)
+                            Image(systemName: "folder.fill").font(.subheadline).foregroundStyle(.indigo)
+                            Text(selectedFolderName).font(.subheadline).bold().lineLimit(1)
+                            Image(systemName: "chevron.down").font(.caption2).foregroundStyle(.secondary)
                         }
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(.quaternary)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Color(uiColor: .secondarySystemGroupedBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain)
+                    
                     Spacer()
+                    
+                    Toggle("连播", isOn: $autoplay)
+                        .toggleStyle(.switch)
+                        .scaleEffect(0.8)
+                        .frame(width: 80)
                 }
 
-                Picker("弹幕源", selection: $selectedSource) {
-                    ForEach(sources, id: \.0) { src in Text(src.1).tag(src.0) }
-                }.pickerStyle(.segmented)
-
-                HStack(spacing: 6) {
-                    TextField("BV号 / ep号 / VID", text: $danmakuID)
-                        .textFieldStyle(.roundedBorder).font(.caption)
-                        .frame(maxWidth: 110)
-                    Button("加载") { Task { await loadDanmaku() } }
-                        .buttonStyle(.borderedProminent).tint(.indigo)
-                    Button { Task { await refreshDanmaku() } } label: {
-                        Image(systemName: "arrow.clockwise")
+                // 弹幕区
+                HStack(spacing: 8) {
+                    Picker("弹幕源", selection: $selectedSource) {
+                        ForEach(sources, id: \.0) { src in Text(src.1).tag(src.0) }
                     }
-                    .buttonStyle(.bordered).tint(.orange)
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    TextField("BV号/VID", text: $danmakuID)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.subheadline)
+                        .frame(maxWidth: 130)
+
+                    // ✨ 竖屏下载按钮（带组合动画）
+                    Button {
+                        Task { await triggerDownloadAction() }
+                    } label: {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.title3)
+                            .symbolEffect(.bounce, value: downloadTrigger)
+                    }
+                    .tint(.indigo)
                     .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                    .scaleEffect(downloadScale)
+                    
+                    // ✨ 竖屏刷新按钮（带组合动画）
+                    Button {
+                        Task { await triggerRefreshAction() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .font(.title3)
+                            .symbolEffect(.bounce, value: refreshTrigger)
+                    }
+                    .tint(.orange)
+                    .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                    .scaleEffect(refreshScale)
+                    
+                    Spacer()
                 }
 
-                HStack(spacing: 6) {
-                    Button { isPlaying ? playerLayer?.pause() : playerLayer?.play() } label: {
-                        Label(isPlaying ? "暂停" : "播放", systemImage: isPlaying ? "pause.fill" : "play.fill").font(.caption)
+                // 工具和控制按键行
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Button { isPlaying ? playerLayer?.pause() : playerLayer?.play() } label: {
+                            Label(isPlaying ? "暂停" : "播放", systemImage: isPlaying ? "pause.fill" : "play.fill").font(.subheadline)
+                        }
+                        .buttonStyle(.borderedProminent).tint(isPlaying ? .orange : .indigo)
+                        
+                        Button { showSettings = true } label: {
+                            Label("设置", systemImage: "slider.horizontal.3").font(.subheadline)
+                        }.buttonStyle(.bordered)
+                        
+                        // ✨ 同步按钮（竖屏工具栏，带组合动画）
+                        Button {
+                            triggerSyncAction()
+                        } label: {
+                            Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.subheadline)
+                                .symbolEffect(.bounce, value: syncTrigger)
+                        }
+                        .buttonStyle(.bordered)
+                        .scaleEffect(syncScale)
+                        
+                        Button { Task { await fetchSubtitles() } } label: {
+                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕已载", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill").font(.subheadline)
+                                .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
+                        }.buttonStyle(.bordered).disabled(isLoadingSubtitles)
+                        
+                        Button { withAnimation { isFullscreen = true } } label: {
+                            Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.subheadline)
+                        }.buttonStyle(.bordered)
                     }
-                    .buttonStyle(.borderedProminent).tint(isPlaying ? .orange : .indigo)
-                    Button { showSettings = true } label: {
-                        Label("设置", systemImage: "slider.horizontal.3").font(.caption)
-                    }.buttonStyle(.bordered)
-                    Button { engine.seek(to: currentTime) } label: {
-                        Label("同步", systemImage: "arrow.triangle.2.circlepath").font(.caption)
-                    }.buttonStyle(.bordered)
-                    Button { withAnimation { isFullscreen = true } } label: {
-                        Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.caption)
-                    }.buttonStyle(.bordered)
-                    Button { Task { await fetchSubtitles() } } label: {
-                        Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text").font(.caption)
-                            .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
-                    }.buttonStyle(.bordered).disabled(isLoadingSubtitles)
-                    Spacer()
-
-                    Toggle("连播", isOn: $autoplay).toggleStyle(.switch)
                 }
 
                 if !statusMessage.isEmpty {
-                    Text(statusMessage).font(.caption2).foregroundStyle(.secondary).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(statusMessage).font(.caption2).foregroundStyle(.secondary).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+            .padding(16)
+            .background(.regularMaterial)
 
             if !playlist.isEmpty {
-                playlistList.frame(maxHeight: 180)
+                playlistList
+                    .frame(maxHeight: 220)
+                    .background(Color(uiColor: .systemGroupedBackground))
             }
         }
-        .background(.regularMaterial)
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+    }
+
+    // MARK: - Animation Trigger Helpers
+
+    private func triggerSyncAction() {
+        // 1. 改变触发计数值以便系统图标捕获 bounce 效果
+        syncTrigger += 1
+        // 2. 先瞬间微小压缩，再弹性恢复正常大小
+        syncScale = 0.88
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+            syncScale = 1.0
+        }
+        // 3. 执行业务逻辑
+        engine.seek(to: currentTime)
+    }
+
+    private func triggerDownloadAction() async {
+        guard !danmakuID.isEmpty else { return }
+        downloadTrigger += 1
+        downloadScale = 0.88
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+            downloadScale = 1.0
+        }
+        await loadDanmaku()
+    }
+
+    private func triggerRefreshAction() async {
+        guard !danmakuID.isEmpty else { return }
+        refreshTrigger += 1
+        refreshScale = 0.88
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+            refreshScale = 1.0
+        }
+        await refreshDanmaku()
     }
 
     // MARK: - Folder Picker & Lists
@@ -577,13 +697,13 @@ struct VideoView: View {
                     .disabled(isLoadingVideos)
                 }
             }
-            .listStyle(.plain)
-            .navigationTitle("选择目录")
+            .listStyle(.insetGrouped)
+            .navigationTitle("选择视频库")
             .navigationBarTitleDisplayMode(.inline)
             .overlay {
                 if isLoadingVideos {
                     Color.black.opacity(0.3).ignoresSafeArea()
-                    ProgressView("加载视频列表...")
+                    ProgressView("正在加载视频列表...")
                         .padding(20)
                         .background(.regularMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -605,21 +725,25 @@ struct VideoView: View {
 
     private var playlistHeader: some View {
         HStack {
-            Text("播放列表").font(.footnote.bold()).foregroundColor(.secondary)
+            Text("播放列表").font(.headline).foregroundColor(.primary)
             Spacer()
-            Text("\(playlist.count) 个视频").font(.caption2).foregroundStyle(.secondary)
+            Text("\(playlist.count) 个视频")
+                .font(.caption).bold()
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color.secondary.opacity(0.15))
+                .clipShape(Capsule())
         }
     }
 
     private var playlistList: some View {
         Group {
             if playlist.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "tray").font(.body).foregroundStyle(.secondary)
-                    Text("选择目录加载视频").font(.caption2).foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    Image(systemName: "tray").font(.title2).foregroundStyle(.secondary)
+                    Text("选择目录加载视频").font(.subheadline).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.vertical, 20)
+                .padding(.vertical, 40)
             } else {
                 List {
                     ForEach(Array(playlist.enumerated()), id: \.element.id) { idx, item in
@@ -630,7 +754,7 @@ struct VideoView: View {
                             onDelete: { deleteItem(at: idx) }
                         )
                         .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .listRowSeparator(.hidden)
                     }
                 }
@@ -692,7 +816,6 @@ struct VideoView: View {
         seekTarget = 0
         playerDuration = 0
         
-        // 重置字幕
         currentSubtitleName = ""
         subtitleEntries = []
 
@@ -727,8 +850,6 @@ struct VideoView: View {
         if !danmakuID.isEmpty && !danmakuHidden {
             Task { await loadDanmaku() }
         }
-        
-        // 🚨 撤销了强行 Seek，把逻辑移到了 onStateChange 的 readyToPlay 中
     }
 
     private func deleteItem(at index: Int) {
@@ -745,6 +866,7 @@ struct VideoView: View {
     private func loadDanmaku() async {
         guard !danmakuID.isEmpty else { return }
         isLoadingDanmaku = true
+        statusMessage = "正在加载 \(danmakuID) 弹幕..."
         do {
             let strategy = selectedSource == "bili" ? "seg.so" : ""
             let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: danmakuID, strategy: strategy)
@@ -759,6 +881,7 @@ struct VideoView: View {
     private func refreshDanmaku() async {
         guard !danmakuID.isEmpty else { return }
         isLoadingDanmaku = true
+        statusMessage = "正在刷新 \(danmakuID) 弹幕..."
         do {
             let strategy = selectedSource == "bili" ? "seg.so" : ""
             let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: danmakuID, strategy: strategy, refresh: true)
@@ -784,7 +907,6 @@ struct VideoView: View {
         }
     }
 
-    // ✨ 修复：字幕获取与解析状态必须通过 MainActor 通知主线程 UI
     private func saveSubtitleMemory(folder: String) {
         var mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
         mem[folder] = currentSubtitleName
@@ -835,13 +957,11 @@ struct VideoView: View {
 
     private func parseSRT(_ content: String) -> [SubtitleEntry] {
         var entries: [SubtitleEntry] = []
-        // Normalize line endings
         let normalized = content.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
         let blocks = normalized.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         for block in blocks {
             let lines = block.components(separatedBy: "\n").filter { !$0.isEmpty }
             guard lines.count >= 2 else { continue }
-            // Find the time line (contains "-->")
             guard let timeIdx = lines.firstIndex(where: { $0.contains("-->") }) else { continue }
             let timeLine = lines[timeIdx]
             let parts = timeLine.components(separatedBy: "-->").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -937,7 +1057,8 @@ struct VideoView: View {
                     }
                 }
             }
-            .navigationTitle("字幕")
+            .listStyle(.insetGrouped)
+            .navigationTitle("选择字幕")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -948,9 +1069,8 @@ struct VideoView: View {
         }
     }
 
-    // MARK: - Time Observers (核心状态机与线程修复)
+    // MARK: - Time Observers
 
-    // ✨ 修复：重新找回丢失的 MainActor 与 MKV 安全起播策略
     private func setupTimeObserver() {
         playerDelegate.onStateChange = { state in
             Task { @MainActor in
@@ -959,7 +1079,6 @@ struct VideoView: View {
                     self.isPlaying = false
                 case .readyToPlay:
                     self.isPlaying = true
-                    // Resume saved progress
                     if let item = self.currentItem {
                         let id = item.relativePath
                         Task {
@@ -1025,7 +1144,6 @@ struct VideoView: View {
         saveProgress(item: item, time: currentTime)
     }
 
-    // Detect IDs...
     private func detectVideoID(_ name: String) -> String? {
         let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
         if let m = try? NSRegularExpression(pattern: "BV[0-9A-Za-z]+").firstMatch(in: base, range: NSRange(0..<base.count)),
@@ -1060,8 +1178,6 @@ struct VideoView: View {
         return nil
     }
 
-    // MARK: - KSPlayerLayerDelegate (Fallback)
-
     func player(layer: KSPlayerLayer, state: KSPlayerState) {}
     func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {}
     func player(layer: KSPlayerLayer, finish error: Error?) {}
@@ -1086,30 +1202,36 @@ struct PlaylistRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             AsyncImage(url: APIService.fetchThumbnailURL(name: item.thumbnailName)) { phase in
                 switch phase {
                 case .success(let img):
                     img.resizable().aspectRatio(contentMode: .fill)
                 default:
                     Rectangle().fill(.quaternary)
-                        .overlay(Image(systemName: "play.rectangle").font(.caption).foregroundStyle(.secondary))
+                        .overlay(Image(systemName: "play.tv.fill").font(.title3).foregroundStyle(.tertiary))
                 }
             }
-            .frame(width: 88, height: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: 100, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             Text(cleanedDisplayName)
                 .font(.subheadline)
                 .lineLimit(2)
                 .foregroundColor(isActive ? .indigo : .primary)
-                .bold(isActive)
+                .fontWeight(isActive ? .bold : .regular)
             
             Spacer()
+            
+            if isActive {
+                Image(systemName: "waveform")
+                    .font(.caption)
+                    .foregroundColor(.indigo)
+            }
         }
         .padding(8)
-        .background(isActive ? Color.indigo.opacity(0.08) : Color.primary.opacity(0.02))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(isActive ? Color.indigo.opacity(0.1) : Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
         .contextMenu {
