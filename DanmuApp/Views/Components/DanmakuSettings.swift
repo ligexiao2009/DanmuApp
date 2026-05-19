@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DanmakuSettings: View {
     @Binding var config: DanmakuConfig
+    var danmakuHidden: Bool
+    var onToggleDanmaku: (() -> Void)?
 
     var body: some View {
         NavigationStack {
@@ -12,6 +14,15 @@ struct DanmakuSettings: View {
                     LabeledSlider(label: "区域", value: Binding(get: { Double(config.area) }, set: { config.area = Int($0) }), range: 10...100, step: 5, format: "%.0f%%")
                     LabeledSlider(label: "透明度", value: $config.opacity, range: 0.1...1, step: 0.05, format: "%.0f%%")
                     LabeledSlider(label: "偏移", value: $config.offset, range: -300...300, step: 1, format: "%.0fs")
+                }
+                Section {
+                    Button {
+                        onToggleDanmaku?()
+                    } label: {
+                        Label(danmakuHidden ? "重新开启弹幕" : "关闭所有弹幕",
+                              systemImage: danmakuHidden ? "text.badge.checkmark" : "text.badge.xmark")
+                    }
+                    .tint(danmakuHidden ? .green : .red)
                 }
             }
             .navigationTitle("弹幕设置")

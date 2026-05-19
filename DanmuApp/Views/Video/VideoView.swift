@@ -34,6 +34,20 @@ struct VideoView: View {
     @State private var statusMessage: String = ""
     @State private var autoplay: Bool = true
 
+    // Subtitles
+    @State private var showSubtitlePicker = false
+    @State private var serverSubtitles: [String] = []
+    @State private var isLoadingSubtitles = false
+    @State private var currentSubtitleName = ""
+    @State private var danmakuHidden = false
+    @State private var subtitleEntries: [SubtitleEntry] = []
+
+    struct SubtitleEntry {
+        let start: Double
+        let end: Double
+        let text: String
+    }
+
     private let sources = [
         ("bili", "B站"), ("qq", "腾讯"), ("mango", "芒果"), ("iqiyi", "爱奇艺")
     ]
@@ -54,7 +68,6 @@ struct VideoView: View {
                         .transition(.move(edge: .trailing))
                 }
             }
-            // 动态处理安全区域
             .ignoresSafeArea(edges: (isLandscape || isFullscreen) ? .bottom : [])
             .safeAreaPadding(.top, (isLandscape && !isFullscreen) ? 8 : 0)
             .overlay(alignment: .bottom) {
@@ -64,11 +77,23 @@ struct VideoView: View {
         .onAppear { Task { await loadFolders(); setupTimeObserver() } }
         .onDisappear { playerLayer?.pause(); isPlaying = false; saveProgress(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
-            DanmakuSettings(config: $engine.config)
+            DanmakuSettings(config: $engine.config, danmakuHidden: danmakuHidden, onToggleDanmaku: {
+                danmakuHidden.toggle()
+                if danmakuHidden {
+                    engine.load([])
+                    statusMessage = "弹幕已关闭"
+                } else {
+                    Task { await loadDanmaku() }
+                    statusMessage = "弹幕重新开启"
+                }
+            })
         }
         .sheet(isPresented: $showFolderPicker) {
             folderPickerSheet
                 .onAppear { Task { await loadFolders() } }
+        }
+        .sheet(isPresented: $showSubtitlePicker) {
+            subtitlePickerSheet
         }
         .toolbar(isFullscreen ? .hidden : .visible, for: .tabBar)
     }
@@ -80,7 +105,26 @@ struct VideoView: View {
             VideoPlayerView(playerLayer: $playerLayer)
             DanmakuOverlay(engine: engine, currentTime: currentTime, isPlaying: isPlaying)
 
-            // 控制层设计
+            // ✨ 优化：独立的全局字幕层！
+            // 把字幕放在控制面板之外，保证即使面板隐藏了，字幕依然丝滑显示
+            if !currentSubtitleName.isEmpty, let text = currentSubtitleText(at: currentTime), !text.isEmpty {
+                VStack {
+                    Spacer()
+                    Text(text)
+                        .font(.system(size: isFullscreen ? 26 : 22, weight: .bold)) // 全屏时字体稍微放大
+                        .foregroundColor(.white)
+                        // 经典电影双层阴影特效，无论画面多白都能清晰看清字幕
+                        .shadow(color: .black.opacity(0.8), radius: 1, x: 1, y: 1)
+                        .shadow(color: .black.opacity(0.6), radius: 3, x: 0, y: 0)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, showControls ? 80 : 30) // 如果控制栏显示，字幕上浮避开进度条
+                        .animation(.easeInOut(duration: 0.2), value: showControls)
+                }
+                .allowsHitTesting(false) // 让点击事件穿透字幕
+            }
+
+            // 控制面板层
             if isFullscreen {
                 fullscreenControlsView
             } else if showControls {
@@ -160,7 +204,9 @@ struct VideoView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(.ultraThinMaterial.opacity(0.6))
+            .background(
+                LinearGradient(colors: [.black.opacity(0.8), .clear], startPoint: .bottom, endPoint: .top)
+            ) // 优化：改用底部渐变黑影，不生硬
         }
         .transition(.opacity)
     }
@@ -194,6 +240,7 @@ struct VideoView: View {
                         Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
                             .font(.system(size: 60))
                             .foregroundColor(.white.opacity(0.8))
+                            .shadow(radius: 5)
                     }
 
                     // 全屏底部进度条
@@ -221,7 +268,9 @@ struct VideoView: View {
                             }
                         }
                         .padding(.horizontal, 16).padding(.vertical, 10)
-                        .background(.ultraThinMaterial.opacity(0.6))
+                        .background(
+                            LinearGradient(colors: [.black.opacity(0.8), .clear], startPoint: .bottom, endPoint: .top)
+                        )
                     }
                 }
                 .transition(.opacity)
@@ -252,7 +301,6 @@ struct VideoView: View {
     private var sidebarView: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // 1. 顶部当前媒体看板
                 if let current = currentItem {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -273,7 +321,6 @@ struct VideoView: View {
                     .background(Color.primary.opacity(0.03))
                 }
 
-                // 2. 弹幕载入与配置面板
                 VStack(spacing: 12) {
                     HStack(spacing: 8) {
                         Menu {
@@ -306,7 +353,6 @@ struct VideoView: View {
                         .disabled(danmakuID.isEmpty)
                     }
 
-                    // 快捷控制流
                     HStack(spacing: 12) {
                         Button {
                             isPlaying ? playerLayer?.pause() : playerLayer?.play()
@@ -324,31 +370,34 @@ struct VideoView: View {
                             Label("参数", systemImage: "slider.horizontal.3")
                         }
 
-                        Spacer()
-
-                        if !statusMessage.isEmpty {
-                            Text(statusMessage)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                        Button { Task { await fetchSubtitles() } } label: {
+                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text")
+                                .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green) // 有字幕时高亮
                         }
+
+                        Spacer()
                     }
                     .font(.footnote)
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+
+                    if !statusMessage.isEmpty {
+                        Text(statusMessage)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
 
                 Divider()
 
-                // 3. 播放列表头部
                 playlistHeader
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
                     .padding(.bottom, 6)
 
-                // 4. 无缝丝滑滚动列表
                 playlistList
             }
             .background(.ultraThinMaterial)
@@ -435,13 +484,17 @@ struct VideoView: View {
                     Button { withAnimation { isFullscreen = true } } label: {
                         Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.caption)
                     }.buttonStyle(.bordered)
+                    Button { Task { await fetchSubtitles() } } label: {
+                        Label(currentSubtitleName.isEmpty ? "字幕" : "字幕✓", systemImage: "doc.text").font(.caption)
+                            .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
+                    }.buttonStyle(.bordered)
                     Spacer()
 
                     Toggle("连播", isOn: $autoplay).toggleStyle(.switch)
                 }
 
                 if !statusMessage.isEmpty {
-                    Text(statusMessage).font(.caption2).foregroundStyle(.secondary)
+                    Text(statusMessage).font(.caption2).foregroundStyle(.secondary).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
@@ -453,7 +506,7 @@ struct VideoView: View {
         .background(.regularMaterial)
     }
 
-    // MARK: - Folder Picker Sheet
+    // MARK: - Folder Picker & Lists
 
     private var folderPickerSheet: some View {
         NavigationStack {
@@ -513,8 +566,6 @@ struct VideoView: View {
             }
         }
     }
-
-    // MARK: - Playlist Components
 
     private var playlistHeader: some View {
         HStack {
@@ -598,7 +649,12 @@ struct VideoView: View {
         currentTime = 0
         seekTarget = 0
         playerDuration = 0
+        
+        // 重置字幕
+        currentSubtitleName = ""
+        subtitleEntries = []
 
+        playerLayer?.delegate = nil
         playerLayer?.pause()
         let url = APIService.videoStreamURL(name: item.relativePath)
         let layer = KSPlayerLayer(url: url, options: KSOptions(), delegate: playerDelegate)
@@ -606,7 +662,6 @@ struct VideoView: View {
         layer.play()
         isPlaying = true
 
-        // Auto-detect video ID and source from filename
         let name = item.name
         let bv = detectBVID(name)
         let tencentVid = detectTencentVID(name)
@@ -627,17 +682,11 @@ struct VideoView: View {
             danmakuID = item.videoId ?? ""
         }
 
-        if !danmakuID.isEmpty {
+        if !danmakuID.isEmpty && !danmakuHidden {
             Task { await loadDanmaku() }
         }
-
-        Task {
-            let id = item.relativePath + "__" + String(item.name.hashValue)
-            if let p = try? await APIService.shared.fetchProgress(id: id) {
-                let time = CMTime(seconds: p.time, preferredTimescale: 600)
-                playerLayer?.seek(time: time.seconds, autoPlay: true) { _ in }
-            }
-        }
+        
+        // 🚨 撤销了强行 Seek，把逻辑移到了 onStateChange 的 readyToPlay 中
     }
 
     private func deleteItem(at index: Int) {
@@ -662,11 +711,240 @@ struct VideoView: View {
         }
     }
 
-    private func autoLoadDanmaku(id: String) async {
+    // MARK: - Subtitle Parsing & Actions
+
+    private func fetchSubtitles() async {
+        guard currentItem != nil else { return }
+        isLoadingSubtitles = true
+        showSubtitlePicker = true
+        defer { isLoadingSubtitles = false }
         do {
-            let resp = try await APIService.shared.fetchDanmaku(source: selectedSource, id: id)
-            engine.load(resp.danmus)
-        } catch {}
+            serverSubtitles = try await APIService.shared.fetchSubtitles()
+        } catch {
+            serverSubtitles = []
+        }
+    }
+
+    // ✨ 修复：字幕获取与解析状态必须通过 MainActor 通知主线程 UI
+    private func loadSubtitle(_ name: String) {
+        currentSubtitleName = name
+        Task {
+            do {
+                let url = APIService.videoStreamURL(name: name)
+                let (data, _) = try await URLSession.shared.data(from: url)
+                var parsed: [SubtitleEntry] = []
+                
+                let isASS = name.lowercased().hasSuffix(".ass") || name.lowercased().hasSuffix(".ssa")
+                let encodings: [String.Encoding] = [
+                    .utf8,
+                    String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue))),
+                    .ascii,
+                ]
+                var text: String?
+                for enc in encodings {
+                    if let t = String(data: data, encoding: enc), !t.isEmpty {
+                        text = t
+                        break
+                    }
+                }
+                if let text {
+                    parsed = isASS ? parseASS(text) : parseSRT(text)
+                }
+                
+                await MainActor.run {
+                    self.subtitleEntries = parsed
+                    self.statusMessage = "加载字幕: \(parsed.count) 条"
+                    self.showSubtitlePicker = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.statusMessage = "字幕加载失败"
+                    self.showSubtitlePicker = false
+                }
+            }
+        }
+    }
+
+    private func parseSRT(_ content: String) -> [SubtitleEntry] {
+        var entries: [SubtitleEntry] = []
+        // Normalize line endings
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+        let blocks = normalized.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        for block in blocks {
+            let lines = block.components(separatedBy: "\n").filter { !$0.isEmpty }
+            guard lines.count >= 2 else { continue }
+            // Find the time line (contains "-->")
+            guard let timeIdx = lines.firstIndex(where: { $0.contains("-->") }) else { continue }
+            let timeLine = lines[timeIdx]
+            let parts = timeLine.components(separatedBy: "-->").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            guard parts.count == 2 else { continue }
+            let start = parseSRTTime(parts[0])
+            let end = parseSRTTime(parts[1])
+            let text = lines[(timeIdx + 1)...].joined(separator: "\n")
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"\{[^}]*\}"#, with: "", options: .regularExpression)
+            entries.append(SubtitleEntry(start: start, end: end, text: text))
+        }
+        return entries
+    }
+
+    private func parseSRTTime(_ s: String) -> Double {
+        let cleaned = s.replacingOccurrences(of: ",", with: ".")
+        let parts = cleaned.components(separatedBy: ":")
+        guard parts.count == 3, let h = Double(parts[0]), let m = Double(parts[1]), let sec = Double(parts[2]) else { return 0 }
+        return h * 3600 + m * 60 + sec
+    }
+
+    private func parseASS(_ content: String) -> [SubtitleEntry] {
+        var entries: [SubtitleEntry] = []
+        var inEvents = false
+        let text = content.hasPrefix("\u{FEFF}") ? String(content.dropFirst()) : content
+        for line in text.components(separatedBy: "\n") {
+            let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if t == "[Events]" { inEvents = true; continue }
+            if t.hasPrefix("[") && t != "[Events]" { inEvents = false; continue }
+            guard inEvents, t.hasPrefix("Dialogue:") else { continue }
+            guard let (start, end, text) = parseASSDialogue(t) else { continue }
+            entries.append(SubtitleEntry(start: start, end: end, text: text))
+        }
+        return entries
+    }
+
+    private func parseASSDialogue(_ line: String) -> (Double, Double, String)? {
+        let content = String(line.dropFirst("Dialogue:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        var parts: [String] = []
+        var remaining = content
+        for _ in 0..<9 {
+            if let idx = remaining.firstIndex(of: ",") {
+                parts.append(String(remaining[..<idx]))
+                remaining = String(remaining[remaining.index(after: idx)...])
+            } else { break }
+        }
+        guard parts.count >= 2 else { return nil }
+        let text = remaining.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\N", with: "\n").replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: #"\{[^}]*\}"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let start = parseASSTime(parts[1]), let end = parseASSTime(parts[2]) else { return nil }
+        return (start, end, text)
+    }
+
+    private func parseASSTime(_ s: String) -> Double? {
+        let parts = s.components(separatedBy: ":")
+        guard parts.count == 3, let h = Double(parts[0]), let m = Double(parts[1]) else { return nil }
+        let secParts = parts[2].components(separatedBy: ".")
+        guard secParts.count == 2, let sec = Double(secParts[0]), let cs = Double(secParts[1]) else { return nil }
+        return h * 3600 + m * 60 + sec + cs / 100.0
+    }
+
+    private func currentSubtitleText(at time: Double) -> String? {
+        let matches = subtitleEntries.filter { time >= $0.start && time <= $0.end && !$0.text.isEmpty }
+        if matches.isEmpty { return nil }
+        return matches.map { $0.text }.joined(separator: "\n")
+    }
+
+    private var subtitlePickerSheet: some View {
+        NavigationStack {
+            List {
+                if serverSubtitles.isEmpty {
+                    Text("当前目录无字幕文件 (.srt .vtt .ass)")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(serverSubtitles, id: \.self) { sub in
+                        Button {
+                            loadSubtitle(sub)
+                        } label: {
+                            HStack {
+                                Image(systemName: "doc.text.fill").foregroundColor(.orange)
+                                Text(sub)
+                                Spacer()
+                                if currentSubtitleName == sub {
+                                    Image(systemName: "checkmark").foregroundColor(.indigo)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    }
+                }
+            }
+            .navigationTitle("字幕")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { showSubtitlePicker = false }
+                }
+            }
+            .overlay { if isLoadingSubtitles { ProgressView() } }
+        }
+    }
+
+    // MARK: - Time Observers (核心状态机与线程修复)
+
+    // ✨ 修复：重新找回丢失的 MainActor 与 MKV 安全起播策略
+    private func setupTimeObserver() {
+        playerDelegate.onStateChange = { state in
+            Task { @MainActor in
+                switch state {
+                case .paused, .error, .playedToTheEnd:
+                    self.isPlaying = false
+                case .readyToPlay, .bufferFinished:
+                    self.isPlaying = true
+                case .readyToPlay:
+                    self.isPlaying = true
+                    // 🚀 MKV 安全修复：就绪后再读取历史进度
+                    if let item = self.currentItem {
+                        let id = item.relativePath + "__" + String(item.name.hashValue)
+                        Task {
+                            if let p = try? await APIService.shared.fetchProgress(id: id), p.time > 0 {
+                                await MainActor.run {
+                                    self.playerLayer?.seek(time: p.time, autoPlay: true) { _ in }
+                                }
+                            }
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+        }
+        
+        playerDelegate.onTimeChange = { current, total in
+            Task { @MainActor in
+                let t = current
+                if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
+                self.lastCurrentTime = t
+                self.currentTime = t
+                self.playerDuration = total
+                if !self.isDraggingSlider { self.seekTarget = t }
+            }
+        }
+        
+        playerLayer?.delegate = playerDelegate
+
+        videoEndedObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                self.engine.reset()
+                self.saveProgress()
+                if self.autoplay, self.currentIndex + 1 < self.playlist.count {
+                    self.playItem(at: self.currentIndex + 1)
+                }
+            }
+        }
+
+        progressSaveTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
+            Task { @MainActor in self.saveProgress() }
+        }
+    }
+
+    private func removeTimeObserver() {
+        progressSaveTimer?.invalidate()
+        if let obs = videoEndedObserver { NotificationCenter.default.removeObserver(obs) }
     }
 
     private func saveProgress() {
@@ -675,6 +953,7 @@ struct VideoView: View {
         Task { try? await APIService.shared.saveProgress(id: id, time: currentTime) }
     }
 
+    // Detect IDs...
     private func detectVideoID(_ name: String) -> String? {
         let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
         if let m = try? NSRegularExpression(pattern: "BV[0-9A-Za-z]+").firstMatch(in: base, range: NSRange(0..<base.count)),
@@ -709,61 +988,11 @@ struct VideoView: View {
         return nil
     }
 
-    private func setupTimeObserver() {
-        playerDelegate.onStateChange = { [self] state in
-            self.isPlaying = state != .paused && state != .playedToTheEnd && state != .error
-        }
-        playerDelegate.onTimeChange = { [self] current, total in
-            let t = current
-            if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
-            self.lastCurrentTime = t
-            self.currentTime = t
-            self.playerDuration = total
-            if !self.isDraggingSlider { self.seekTarget = t }
-        }
-        playerLayer?.delegate = playerDelegate
+    // MARK: - KSPlayerLayerDelegate (Fallback)
 
-        videoEndedObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { @MainActor in
-                self.engine.reset()
-                self.saveProgress()
-                if self.autoplay, self.currentIndex + 1 < self.playlist.count {
-                    self.playItem(at: self.currentIndex + 1)
-                }
-            }
-        }
-
-        progressSaveTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
-            Task { @MainActor in self.saveProgress() }
-        }
-    }
-
-    private func removeTimeObserver() {
-        progressSaveTimer?.invalidate()
-        if let obs = videoEndedObserver { NotificationCenter.default.removeObserver(obs) }
-    }
-
-    // MARK: - KSPlayerLayerDelegate
-
-    func player(layer: KSPlayerLayer, state: KSPlayerState) {
-        isPlaying = state != .paused && state != .playedToTheEnd && state != .error
-    }
-
-    func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {
-        let t = currentTime
-        if abs(t - lastCurrentTime) > 0.5 { engine.seek(to: t) }
-        lastCurrentTime = t
-        self.currentTime = t
-        playerDuration = totalTime
-        if !isDraggingSlider { seekTarget = t }
-    }
-
+    func player(layer: KSPlayerLayer, state: KSPlayerState) {}
+    func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {}
     func player(layer: KSPlayerLayer, finish error: Error?) {}
-
     func player(layer: KSPlayerLayer, bufferedCount: Int, consumeTime: TimeInterval) {}
 }
 

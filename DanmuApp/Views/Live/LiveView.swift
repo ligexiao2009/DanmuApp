@@ -65,7 +65,7 @@ struct LiveView: View {
         .onAppear { setupTimeObserver(); resetControlsTimer() }
         .onDisappear { player.pause(); isPlaying = false; stopPolling(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
-            DanmakuSettings(config: $engine.config)
+            DanmakuSettings(config: $engine.config, danmakuHidden: false, onToggleDanmaku: { engine.load([]) })
         }
         .fullScreenCover(isPresented: $isFullscreen) {
             LiveFullscreenView(

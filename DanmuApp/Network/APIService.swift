@@ -52,6 +52,10 @@ actor APIService {
         return try await get("/api/folders")
     }
 
+    func fetchSubtitles() async throws -> [String] {
+        return try await get("/api/subtitles")
+    }
+
     // MARK: - Progress
 
     func fetchProgress(id: String) async throws -> PlaybackProgress {
