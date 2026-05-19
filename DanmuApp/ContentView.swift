@@ -23,13 +23,13 @@ struct ContentView: View {
                 .tabItem { Label(Tab.home.rawValue, systemImage: Tab.home.icon) }
                 .tag(Tab.home)
 
-            LiveView()
-                .tabItem { Label(Tab.live.rawValue, systemImage: Tab.live.icon) }
-                .tag(Tab.live)
-
             VideoView()
                 .tabItem { Label(Tab.video.rawValue, systemImage: Tab.video.icon) }
                 .tag(Tab.video)
+
+            LiveView()
+                .tabItem { Label(Tab.live.rawValue, systemImage: Tab.live.icon) }
+                .tag(Tab.live)
         }
         .tint(.indigo)
     }

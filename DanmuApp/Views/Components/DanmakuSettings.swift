@@ -8,13 +8,6 @@ struct DanmakuSettings: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("弹幕显示") {
-                    LabeledSlider(label: "速度", value: $config.speed, range: 8...40, step: 1, format: "%.0fs")
-                    LabeledSlider(label: "字号", value: $config.fontSize, range: 14...72, step: 1, format: "%.0fpx")
-                    LabeledSlider(label: "区域", value: Binding(get: { Double(config.area) }, set: { config.area = Int($0) }), range: 10...100, step: 5, format: "%.0f%%")
-                    LabeledSlider(label: "透明度", value: $config.opacity, range: 0.1...1, step: 0.05, format: "%.0f%%")
-                    LabeledSlider(label: "偏移", value: $config.offset, range: -300...300, step: 1, format: "%.0fs")
-                }
                 Section {
                     Button {
                         onToggleDanmaku?()
@@ -23,6 +16,13 @@ struct DanmakuSettings: View {
                               systemImage: danmakuHidden ? "text.badge.checkmark" : "text.badge.xmark")
                     }
                     .tint(danmakuHidden ? .green : .red)
+                }
+                Section("弹幕显示") {
+                    LabeledSlider(label: "速度", value: $config.speed, range: 8...40, step: 1, format: "%.0fs")
+                    LabeledSlider(label: "字号", value: $config.fontSize, range: 14...72, step: 1, format: "%.0fpx")
+                    LabeledSlider(label: "区域", value: Binding(get: { Double(config.area) }, set: { config.area = Int($0) }), range: 10...100, step: 5, format: "%.0f%%")
+                    LabeledSlider(label: "透明度", value: $config.opacity, range: 0.1...1, step: 0.05, format: "%.0f%%")
+                    LabeledSlider(label: "偏移", value: $config.offset, range: -300...300, step: 1, format: "%.0fs")
                 }
             }
             .navigationTitle("弹幕设置")

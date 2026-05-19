@@ -234,14 +234,33 @@ struct VideoView: View {
                         Spacer()
                     }
                     
-                    // 全屏中央播放/暂停按钮
-                    Button {
-                        isPlaying ? playerLayer?.pause() : playerLayer?.play()
-                    } label: {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.white.opacity(0.8))
-                            .shadow(radius: 5)
+                    // 全屏中央播放控制
+                    HStack(spacing: 40) {
+                        Button {
+                            let t = max(0, currentTime - 15)
+                            playerLayer?.seek(time: t, autoPlay: true) { _ in }
+                        } label: {
+                            Image(systemName: "gobackward.15")
+                                .font(.system(size: 36))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+
+                        Button {
+                            isPlaying ? playerLayer?.pause() : playerLayer?.play()
+                        } label: {
+                            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+
+                        Button {
+                            let t = min(playerDuration, currentTime + 15)
+                            playerLayer?.seek(time: t, autoPlay: true) { _ in }
+                        } label: {
+                            Image(systemName: "goforward.15")
+                                .font(.system(size: 36))
+                                .foregroundColor(.white.opacity(0.8))
+                        }
                     }
 
                     // 全屏底部进度条
