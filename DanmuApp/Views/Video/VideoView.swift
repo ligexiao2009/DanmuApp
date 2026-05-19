@@ -70,6 +70,7 @@ struct VideoView: View {
             folderPickerSheet
                 .onAppear { Task { await loadFolders() } }
         }
+        .toolbar(isFullscreen ? .hidden : .visible, for: .tabBar)
     }
 
     // MARK: - Player Area
