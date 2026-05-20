@@ -43,7 +43,7 @@ struct LiveView: View {
     @State private var isFullscreen: Bool = false
     @State private var showSidebar: Bool = true
     @State private var keyboardHeight: CGFloat = 0
-    @State private var controlsTimer: Task<Void, Never>? // 新增：可控的控制条定时器
+    @State private var controlsTimer: Task<Void, Never>?
 
     private let sources = [("zhibo8", "直播吧"), ("txsp", "腾讯体育")]
     private let zhibo8Types = [("nba", "NBA"), ("zuqiu", "足球"), ("other", "其他")]
@@ -56,7 +56,7 @@ struct LiveView: View {
                 if isLandscape {
                     HStack(spacing: 0) {
                         playerArea
-                        if showSidebar { controlSidebar.frame(width: 350) } // 拓宽侧边栏，给大屏更好的排版空间
+                        if showSidebar { controlSidebar.frame(width: 350) }
                     }
                     .overlay(alignment: .topTrailing) {
                         if !showSidebar {
@@ -78,7 +78,8 @@ struct LiveView: View {
             .ignoresSafeArea(edges: isLandscape ? .bottom : [])
         }
         .onAppear {
-            setupTimeObserver(); resetControlsTimer()
+            setupTimeObserver()
+            resetControlsTimer()
             NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { n in
                 keyboardHeight = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
             }
@@ -86,7 +87,13 @@ struct LiveView: View {
                 keyboardHeight = 0
             }
         }
-        .onDisappear { player.pause(); isPlaying = false; stopPolling(); removeTimeObserver(); controlsTimer?.cancel() }
+        .onDisappear {
+            player.pause()
+            isPlaying = false
+            stopPolling()
+            removeTimeObserver()
+            controlsTimer?.cancel()
+        }
         .sheet(isPresented: $showSettings) {
             DanmakuSettings(config: $engine.config, danmakuHidden: false, onToggleDanmaku: { engine.load([]) })
         }
@@ -122,7 +129,11 @@ struct LiveView: View {
                             onEditingChanged: { editing in
                                 isDraggingSlider = editing
                                 if !editing {
-                                    Task { await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600)) }
+                                    Task {
+                                        await player.seek(to: CMTime(seconds: seekTarget, preferredTimescale: 600))
+                                        // 确保拖拽结束同步真实当前时间
+                                        currentTime = seekTarget
+                                    }
                                 }
                             }
                         ).tint(.red)
@@ -153,16 +164,16 @@ struct LiveView: View {
             }
         }
         .onTapGesture {
-            if isPlaying { player.pause() } else { player.play() }
-            showControls = true
-            resetControlsTimer()
+            // 优化：单键点击仅处理控制条显隐，不粗暴打断视频播放
+            withAnimation { showControls.toggle() }
+            if showControls { resetControlsTimer() }
         }
     }
 
     private func resetControlsTimer() {
         controlsTimer?.cancel()
         controlsTimer = Task {
-            try? await Task.sleep(nanoseconds: 8_000_000_000) // 8秒无操作自动隐藏
+            try? await Task.sleep(for: .seconds(8)) // 规避旧版纳秒警告
             guard !Task.isCancelled else { return }
             withAnimation { showControls = false }
         }
@@ -173,7 +184,6 @@ struct LiveView: View {
     private var controlSidebar: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Close sidebar button
                 HStack {
                     Spacer()
                     Button { withAnimation { showSidebar.toggle() } } label: {
@@ -183,13 +193,12 @@ struct LiveView: View {
                 liveStatusHeader
                 streamControls
             }
-            .padding(.horizontal, 16) // 左右依然保持 16 的舒适间距
-            .padding(.bottom, 16)     // 底部依然保持 16
-            .padding(.top, 0)         // 👈 把顶部间距从 16 缩减到 2（或者 0），立刻大幅度上移！
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+            .padding(.top, 2)
         }
         .safeAreaInset(edge: .bottom) { Color.clear.frame(height: keyboardHeight) }
         .background(.ultraThinMaterial)
-//        .ignoresSafeArea(edges: .top)
     }
 
     private var controlSheet: some View {
@@ -197,9 +206,9 @@ struct LiveView: View {
             VStack(spacing: 16) {
                 streamControls
             }
-            .padding(.horizontal, 16) // 左右依然保持 16 的舒适间距
-            .padding(.bottom, 16)     // 底部依然保持 16
-            .padding(.top, 2)         // 👈 把顶部间距从 16 缩减到 2（或者 0），立刻大幅度上移！
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+            .padding(.top, 2)
         }
         .background(.regularMaterial)
     }
@@ -235,7 +244,6 @@ struct LiveView: View {
 
     private var streamControls: some View {
         VStack(spacing: 16) {
-            
             // --- 模块 1：直播流配置卡片 ---
             VStack(alignment: .leading, spacing: 12) {
                 Label("直播流源 (M3U8)", systemImage: "antenna.radiowaves.left.and.right")
@@ -346,6 +354,7 @@ struct LiveView: View {
             HStack(spacing: 8) {
                 Button {
                     isPlaying ? player.pause() : player.play()
+                    isPlaying.toggle()
                 } label: {
                     Label(isPlaying ? "暂停" : "开播", systemImage: isPlaying ? "pause.fill" : "play.fill")
                         .font(.subheadline).bold()
@@ -377,7 +386,19 @@ struct LiveView: View {
 
     private func playStream() {
         guard !streamURL.isEmpty, let url = URL(string: streamURL) else { return }
-        player.replaceCurrentItem(with: AVPlayerItem(url: url))
+        let item = AVPlayerItem(url: url)
+        
+        // 挂载 KVO 监听视频总长度
+        durationObserver = item.observe(\.status, options: [.new]) { [self] item, _ in
+            if item.status == .readyToPlay {
+                let duration = item.duration.seconds
+                if duration.isFinite && duration > 0 {
+                    self.playerDuration = duration
+                }
+            }
+        }
+        
+        player.replaceCurrentItem(with: item)
         player.play()
         isPlaying = true
     }
@@ -385,6 +406,8 @@ struct LiveView: View {
     private func stopStream() {
         player.pause()
         player.replaceCurrentItem(with: nil)
+        durationObserver?.invalidate()
+        durationObserver = nil
         isPlaying = false
     }
 
@@ -502,21 +525,25 @@ struct LiveView: View {
 
     private func setupTimeObserver() {
         let interval = CMTime(value: 1, timescale: 10)
-        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+        // 引入 [self] 防止内存泄漏
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [self] time in
+            // 如果用户正在拖拽进度条，直接阻断来自播放器的自动更新，防止进度条“打架”
+            guard !self.isDraggingSlider else { return }
+            
             let t = time.seconds
-            Task { @MainActor in
-                if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
-                self.lastCurrentTime = t
-                self.currentTime = t
-                if !self.isDraggingSlider { self.seekTarget = t }
-                self.isPlaying = self.player.rate != 0
-            }
+            if abs(t - self.lastCurrentTime) > 0.5 { self.engine.seek(to: t) }
+            self.lastCurrentTime = t
+            self.currentTime = t
+            self.seekTarget = t
+            self.isPlaying = self.player.rate != 0
         }
     }
 
     private func removeTimeObserver() {
         if let obs = timeObserver { player.removeTimeObserver(obs) }
+        timeObserver = nil
         durationObserver?.invalidate()
+        durationObserver = nil
     }
 
     private func formatTime(_ s: Double) -> String {
@@ -539,7 +566,7 @@ struct LiveFullscreenView: View {
     @Binding var isFullscreen: Bool
 
     @State private var showControls = true
-    @State private var controlsTimer: Task<Void, Never>? // 同样升级全屏定时器
+    @State private var controlsTimer: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -594,9 +621,8 @@ struct LiveFullscreenView: View {
         .animation(.easeInOut(duration: 0.3), value: showControls)
         .ignoresSafeArea().statusBarHidden()
         .onTapGesture {
-            if isPlaying { player.pause() } else { player.play() }
-            showControls = true
-            resetControlsTimer()
+            withAnimation { showControls.toggle() }
+            if showControls { resetControlsTimer() }
         }
         .onAppear { resetControlsTimer() }
         .onDisappear { controlsTimer?.cancel() }
@@ -605,7 +631,7 @@ struct LiveFullscreenView: View {
     private func resetControlsTimer() {
         controlsTimer?.cancel()
         controlsTimer = Task {
-            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            try? await Task.sleep(for: .seconds(6))
             guard !Task.isCancelled else { return }
             withAnimation { showControls = false }
         }
