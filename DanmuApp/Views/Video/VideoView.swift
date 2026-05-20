@@ -87,7 +87,22 @@ struct VideoView: View {
                 if (!isLandscape || isCompact) && !isFullscreen { portraitControls }
             }
         }
-        .onAppear { Task { await loadFolders(); setupTimeObserver() } }
+        .onAppear {
+            Task { await loadFolders(); setupTimeObserver() }
+            // Check for library play target
+            if let folder = UserDefaults.standard.string(forKey: "lib_play_folder"),
+               let file = UserDefaults.standard.string(forKey: "lib_play_file") {
+                UserDefaults.standard.removeObject(forKey: "lib_play_folder")
+                UserDefaults.standard.removeObject(forKey: "lib_play_file")
+                Task {
+                    await switchFolder(folder)
+                    // Find and play the specific file
+                    if let idx = playlist.firstIndex(where: { $0.relativePath == file || $0.name == file }) {
+                        playItem(at: idx)
+                    }
+                }
+            }
+        }
         .onDisappear { playerLayer?.pause(); isPlaying = false; saveProgress(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
             DanmakuSettings(config: $engine.config, danmakuHidden: danmakuHidden, onToggleDanmaku: {

@@ -9,7 +9,9 @@
 /* Begin PBXBuildFile section */
 		109F65DCB30682185004B2BC /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE0D5E7192D5418B34B74AA /* VideoPlayerView.swift */; };
 		12ACBCB305BB35B1235B1C1E /* KSPlayer in Frameworks */ = {isa = PBXBuildFile; productRef = D99B700439590BE654C986FB /* KSPlayer */; };
+		2866D3D0689E1757E5A5B9E2 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E63655E39EC3EE180C7BCFE /* LibraryView.swift */; };
 		3DC60C0C98B8EA445719F506 /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C429D807ACC2032F4FE4A14 /* APIService.swift */; };
+		466858C1F933B8EB06E289C0 /* LibraryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891ECF112FA8167F93CB34DC /* LibraryItem.swift */; };
 		4AF35998BCCC42E2608742FB /* VideoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */; };
 		545E2C6B722634B2B91E9634 /* FFmpegKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F10EC416CCD41AFF41DB519 /* FFmpegKit */; };
 		5F49DC254C68362B05C94BA8 /* DanmakuEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */; };
@@ -28,6 +30,7 @@
 /* Begin PBXFileReference section */
 		02ED99DC98504225D7407730 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		54F01CAD37CB1911F6400BD3 /* DanmuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmuApp.swift; sourceTree = "<group>"; };
+		5E63655E39EC3EE180C7BCFE /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuItem.swift; sourceTree = "<group>"; };
 		6814C9936927837AD89BF78D /* DanmakuSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuSettings.swift; sourceTree = "<group>"; };
 		74070FA8A39D27C8351E5E5D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -35,6 +38,7 @@
 		76C5FB608EAAF1398D05D741 /* DanmakuEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuEngine.swift; sourceTree = "<group>"; };
 		7D83A009F732D0750B37C10E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoItem.swift; sourceTree = "<group>"; };
+		891ECF112FA8167F93CB34DC /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
 		8C429D807ACC2032F4FE4A14 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
 		B210783031E26E195CE68165 /* FFmpegKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FFmpegKit; path = ../../git/FFmpegKit; sourceTree = SOURCE_ROOT; };
 		BD8B3FB7A2181F4E86E209C5 /* DanmakuOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DanmakuOverlay.swift; sourceTree = "<group>"; };
@@ -63,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				5F1C499AF38F97EF2DE18933 /* DanmakuItem.swift */,
+				891ECF112FA8167F93CB34DC /* LibraryItem.swift */,
 				845B5EEA8FCFCFC1BAF0B78C /* VideoItem.swift */,
 			);
 			path = Models;
@@ -80,6 +85,14 @@
 				5D2BFD0D2378F4DD438751E0 /* Views */,
 			);
 			path = DanmuApp;
+			sourceTree = "<group>";
+		};
+		1CF6D19A89E8E20A00C3F268 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				5E63655E39EC3EE180C7BCFE /* LibraryView.swift */,
+			);
+			path = Library;
 			sourceTree = "<group>";
 		};
 		1D95A3A46DB59925E7525608 /* Video */ = {
@@ -112,6 +125,7 @@
 			children = (
 				D077096934442BF3B7C7A854 /* Components */,
 				C49E982B14F74037F71EA0E1 /* Home */,
+				1CF6D19A89E8E20A00C3F268 /* Library */,
 				31E0C262D8DE50117F8DB344 /* Live */,
 				30D38D70CE335566493EB0DA /* Player */,
 				1D95A3A46DB59925E7525608 /* Video */,
@@ -252,6 +266,8 @@
 				EC0A1E7A0D4E1BC71B6CF08D /* DanmakuSettings.swift in Sources */,
 				EE79F40975DC9885EA762691 /* DanmuApp.swift in Sources */,
 				B9B923B6E2B7913BA2534A95 /* HomeView.swift in Sources */,
+				466858C1F933B8EB06E289C0 /* LibraryItem.swift in Sources */,
+				2866D3D0689E1757E5A5B9E2 /* LibraryView.swift in Sources */,
 				F9FBF96096B95F6B28D790BA /* LiveView.swift in Sources */,
 				4AF35998BCCC42E2608742FB /* VideoItem.swift in Sources */,
 				109F65DCB30682185004B2BC /* VideoPlayerView.swift in Sources */,

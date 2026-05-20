@@ -58,6 +58,30 @@ actor APIService {
         return try await get("/api/subtitles")
     }
 
+    // MARK: - Library
+
+    func fetchLibraryItems() async throws -> [LibraryItem] {
+        return try await get("/api/library/scan")
+    }
+
+    func fetchLibraryInfo(folderPath: String, videoFile: String? = nil, refresh: Bool = false) async throws -> LibraryDetail {
+        var params = ["folder": folderPath]
+        if let f = videoFile { params["file"] = f }
+        if refresh { params["refresh"] = "1" }
+        return try await get("/api/library/info", params: params)
+    }
+
+    func libraryPosterURL(originalURL: String) -> URL {
+        guard let encoded = originalURL.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            return URL(string: "\(Self.baseURL)/api/library/poster")!
+        }
+        return URL(string: "\(Self.baseURL)/api/library/poster?url=\(encoded)")!
+    }
+
+    func libraryPlay(folderPath: String, episode: Int, videoFile: String? = nil) async throws -> LibraryPlayResult {
+        return try await post("/api/library/play", body: ["folderPath": folderPath, "episode": episode, "videoFile": videoFile ?? ""])
+    }
+
     // MARK: - Progress
 
     func fetchProgress(id: String) async throws -> PlaybackProgress {
@@ -115,8 +139,24 @@ actor APIService {
         if let arr = dataField as? [T], T.self == [String].self {
             return arr as! T
         }
-        let data = try JSONSerialization.data(withJSONObject: dataField)
+        // Remove NSNull values before re-encoding
+        let cleaned = stripNull(dataField)
+        let data = try JSONSerialization.data(withJSONObject: cleaned)
         return try decoder.decode(T.self, from: data)
+    }
+
+    private func stripNull(_ value: Any) -> Any {
+        if let dict = value as? [String: Any] {
+            return dict.reduce(into: [String: Any]()) { result, pair in
+                if !(pair.value is NSNull) {
+                    result[pair.key] = stripNull(pair.value)
+                }
+            }
+        }
+        if let arr = value as? [Any] {
+            return arr.map { stripNull($0) }
+        }
+        return value
     }
 
     /// Check code == 0, ignore the data field
