@@ -35,11 +35,13 @@ actor APIService {
         ])
     }
 
-    func fetchTxspDanmaku(roomId: String, programId: String, lastSeq: Int, cursor: String) async throws -> DanmakuResponse {
-        return try await get("/api/danmaku", params: [
+    func fetchTxspDanmaku(roomId: String, programId: String, lastSeq: Int, cursor: String, cookie: String = "") async throws -> DanmakuResponse {
+        var params = [
             "source": "txsp", "roomId": roomId, "programId": programId,
-            "lastSeq": String(lastSeq), "cursor": cursor
-        ])
+            "lastSeq": String(lastSeq), "cursor": cursor,
+        ]
+        if !cookie.isEmpty { params["txspCookie"] = cookie }
+        return try await get("/api/danmaku", params: params)
     }
 
     // MARK: - Videos
@@ -70,6 +72,10 @@ actor APIService {
 
     func sniffStream(pageUrl: String) async throws -> StreamSniffResult {
         return try await post("/api/stream/sniff", body: ["pageUrl": pageUrl])
+    }
+
+    func sniffTxsp(pageUrl: String) async throws -> TxspSniffResult {
+        return try await post("/api/stream/txsp", body: ["pageUrl": pageUrl])
     }
 
     // MARK: - Config

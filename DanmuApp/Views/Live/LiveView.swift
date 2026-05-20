@@ -12,16 +12,19 @@ struct LiveView: View {
     @State private var lastCurrentTime: Double = 0
 
     // Stream
-    @State private var streamURL: String = ""
+    @AppStorage("live_streamURL") private var streamURL: String = ""
     @State private var sniffURL: String = ""
+    @State private var txspPageURL: String = ""
     @State private var sniffStatus: String = ""
+    @State private var txspSniffStatus: String = ""
 
     // Danmaku (zhibo8 / txsp only)
-    @State private var selectedSource: String = "zhibo8"
-    @State private var danmakuID: String = ""
-    @State private var zhibo8Type: String = "nba"
-    @State private var txspRoomId: String = ""
-    @State private var txspProgramId: String = ""
+    @AppStorage("live_source") private var selectedSource: String = "zhibo8"
+    @AppStorage("live_matchId") private var danmakuID: String = ""
+    @AppStorage("live_zhibo8Type") private var zhibo8Type: String = "nba"
+    @AppStorage("live_txspRoomId") private var txspRoomId: String = ""
+    @AppStorage("live_txspProgramId") private var txspProgramId: String = ""
+    @AppStorage("live_txspCookie") private var txspCookie: String = ""
     @State private var showSettings: Bool = false
     @State private var statusMessage: String = ""
     @State private var danmakuCount: Int = 0
@@ -273,6 +276,15 @@ struct LiveView: View {
                 }
 
                 if selectedSource == "txsp" {
+                    HStack(spacing: 6) {
+                        TextField("腾讯体育直播页地址...", text: $txspPageURL)
+                            .textFieldStyle(.roundedBorder).font(.caption)
+                        Button("提取") { Task { await sniffTxspCookie() } }
+                            .buttonStyle(.borderedProminent).tint(.orange).controlSize(.small)
+                    }
+                    if !txspSniffStatus.isEmpty {
+                        Text(txspSniffStatus).font(.caption2).foregroundStyle(.secondary)
+                    }
                     HStack(spacing: 8) {
                         TextField("Room ID", text: $txspRoomId)
                             .textFieldStyle(.roundedBorder).font(.subheadline)
@@ -361,6 +373,20 @@ struct LiveView: View {
         }
     }
 
+    private func sniffTxspCookie() async {
+        guard !txspPageURL.isEmpty else { return }
+        txspSniffStatus = "提取中..."
+        do {
+            let result = try await APIService.shared.sniffTxsp(pageUrl: txspPageURL)
+            txspRoomId = result.roomId
+            txspProgramId = result.programId
+            if let cookie = result.cookie { txspCookie = cookie }
+            txspSniffStatus = "已提取 Room \(result.roomId)"
+        } catch {
+            txspSniffStatus = error.localizedDescription
+        }
+    }
+
     // MARK: - Danmaku Polling Engine
 
     private func loadDanmakuPolling() {
@@ -394,6 +420,7 @@ struct LiveView: View {
             engine.load([])
             statusMessage = "激活轮询监听..."
             pollTxsp()
+            scheduleTxspTimer()
         }
     }
 
@@ -420,7 +447,7 @@ struct LiveView: View {
             do {
                 let response = try await APIService.shared.fetchTxspDanmaku(
                     roomId: txspRoomId, programId: txspProgramId,
-                    lastSeq: txspLastSeq, cursor: txspCursor
+                    lastSeq: txspLastSeq, cursor: txspCursor, cookie: txspCookie
                 )
                 if response.count > 0 {
                     engine.append(response.danmus)
@@ -428,21 +455,18 @@ struct LiveView: View {
                 }
                 if let maxSeq = response.maxSeq { txspLastSeq = maxSeq }
                 if let cursor = response.cursor { txspCursor = cursor }
-                let interval = Double(response.pullInterval ?? 3000) / 1000.0
-                DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
-                    Task { @MainActor in
-                        guard self.isPolling else { return }
-                        self.pollTxsp()
-                    }
-                }
+                statusMessage = "同步完成，通道运行正常"
             } catch {
-                statusMessage = "重试连接中..."
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    Task { @MainActor in
-                        guard self.isPolling else { return }
-                        self.pollTxsp()
-                    }
-                }
+                statusMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func scheduleTxspTimer() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
+            Task { @MainActor in
+                guard self.isPolling else { return }
+                self.pollTxsp()
             }
         }
     }

@@ -31,3 +31,9 @@ struct StreamSniffResult: Decodable {
     let streamUrl: String
     let method: String?
 }
+
+struct TxspSniffResult: Decodable {
+    let roomId: String
+    let programId: String
+    let cookie: String?
+}
