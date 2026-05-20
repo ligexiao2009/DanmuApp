@@ -42,6 +42,7 @@ struct LiveView: View {
     @State private var isDraggingSlider: Bool = false
     @State private var isFullscreen: Bool = false
     @State private var showSidebar: Bool = true
+    @State private var keyboardHeight: CGFloat = 0
     @State private var controlsTimer: Task<Void, Never>? // 新增：可控的控制条定时器
 
     private let sources = [("zhibo8", "直播吧"), ("txsp", "腾讯体育")]
@@ -76,7 +77,15 @@ struct LiveView: View {
             }
             .ignoresSafeArea(edges: isLandscape ? .bottom : [])
         }
-        .onAppear { setupTimeObserver(); resetControlsTimer() }
+        .onAppear {
+            setupTimeObserver(); resetControlsTimer()
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { n in
+                keyboardHeight = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+            }
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+                keyboardHeight = 0
+            }
+        }
         .onDisappear { player.pause(); isPlaying = false; stopPolling(); removeTimeObserver(); controlsTimer?.cancel() }
         .sheet(isPresented: $showSettings) {
             DanmakuSettings(config: $engine.config, danmakuHidden: false, onToggleDanmaku: { engine.load([]) })
@@ -178,6 +187,7 @@ struct LiveView: View {
             .padding(.bottom, 16)     // 底部依然保持 16
             .padding(.top, 0)         // 👈 把顶部间距从 16 缩减到 2（或者 0），立刻大幅度上移！
         }
+        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: keyboardHeight) }
         .background(.ultraThinMaterial)
 //        .ignoresSafeArea(edges: .top)
     }
