@@ -41,6 +41,7 @@ struct LiveView: View {
     @State private var seekTarget: Double = 0
     @State private var isDraggingSlider: Bool = false
     @State private var isFullscreen: Bool = false
+    @State private var showSidebar: Bool = true
     @State private var controlsTimer: Task<Void, Never>? // 新增：可控的控制条定时器
 
     private let sources = [("zhibo8", "直播吧"), ("txsp", "腾讯体育")]
@@ -54,7 +55,17 @@ struct LiveView: View {
                 if isLandscape {
                     HStack(spacing: 0) {
                         playerArea
-                        controlSidebar.frame(width: 350) // 拓宽侧边栏，给大屏更好的排版空间
+                        if showSidebar { controlSidebar.frame(width: 350) } // 拓宽侧边栏，给大屏更好的排版空间
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if !showSidebar {
+                            Button { withAnimation { showSidebar.toggle() } } label: {
+                                Image(systemName: "sidebar.left")
+                                    .font(.title3).padding(10)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }.padding(12)
+                        }
                     }
                 } else {
                     VStack(spacing: 0) {
@@ -153,7 +164,13 @@ struct LiveView: View {
     private var controlSidebar: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 顶部状态看版
+                // Close sidebar button
+                HStack {
+                    Spacer()
+                    Button { withAnimation { showSidebar.toggle() } } label: {
+                        Image(systemName: "sidebar.right").font(.body)
+                    }
+                }
                 liveStatusHeader
                 streamControls
             }
