@@ -96,13 +96,28 @@ struct VideoView: View {
                     UserDefaults.standard.removeObject(forKey: "lib_play_folder")
                     UserDefaults.standard.removeObject(forKey: "lib_play_file")
                 }
-                await loadFolders()
+                let hasLibTarget = libFolder != nil
+                await loadFolders(autoPlay: !hasLibTarget)
                 setupTimeObserver()
                 // Handle library play target after folders are loaded
                 if let folder = libFolder, let file = libFile {
-                    await switchFolder(folder)
-                    if let idx = playlist.firstIndex(where: { $0.relativePath == file || $0.name == file }) {
-                        playItem(at: idx)
+                    selectedFolder = folder
+                    try? await APIService.shared.setVideoDir(folder)
+                    let names = try? await APIService.shared.fetchVideos()
+                    if let names {
+                        playlist = names.map { name in
+                            VideoItem(name: name, relativePath: name, videoId: detectVideoID(name), thumbnailName: name, isRemote: true)
+                        }
+                        let mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
+                        if let saved = mem[folder], !saved.isEmpty {
+                            loadSubtitle(saved)
+                        } else {
+                            let subs = (try? await APIService.shared.fetchSubtitles()) ?? []
+                            if subs.count == 1 { loadSubtitle(subs[0]) }
+                        }
+                        if let idx = playlist.firstIndex(where: { $0.relativePath == file || $0.name == file }) {
+                            playItem(at: idx)
+                        }
                     }
                 }
             }
@@ -821,12 +836,12 @@ struct VideoView: View {
         return playlist[currentIndex]
     }
 
-    private func loadFolders() async {
+    private func loadFolders(autoPlay: Bool = true) async {
         do {
             folders = try await APIService.shared.fetchFolders()
             if folders.isEmpty {
                 statusMessage = "服务器未配置视频目录"
-            } else if selectedFolder.isEmpty, let fallback = folders.first(where: { $0.name == "食贫道" }) ?? folders.first {
+            } else if autoPlay, selectedFolder.isEmpty, let fallback = folders.first(where: { $0.name == "食贫道" }) ?? folders.first {
                 selectedFolder = fallback.path
                 await switchFolder(fallback.path)
             }
