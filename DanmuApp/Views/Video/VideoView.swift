@@ -1042,6 +1042,9 @@ struct VideoView: View {
                 let encodings: [String.Encoding] = [
                     .utf8,
                     String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.GB_18030_2000.rawValue))),
+                    .unicode,
+                    .utf16LittleEndian,
+                    .utf16BigEndian,
                     .ascii,
                 ]
                 var text: String?

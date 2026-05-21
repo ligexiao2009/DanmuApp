@@ -6,6 +6,7 @@ struct LibraryView: View {
     @State private var isLoading = false
     @State private var isRefreshing = false
     @State private var searchText = ""
+    @State private var refreshID = UUID()
 
     var onPlayEpisode: ((_ folderPath: String, _ videoFile: String) -> Void)?
 
@@ -50,6 +51,7 @@ struct LibraryView: View {
                                 .buttonStyle(.plain)
                             }
                         }
+                        .id(refreshID)
                         .padding(14)
                     }
                 }
@@ -58,21 +60,22 @@ struct LibraryView: View {
             .searchable(text: $searchText, prompt: "搜索片名、年份、类型...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if isRefreshing {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }
+                    Button { Task { await load() } } label: {
+                        Image(systemName: "arrow.clockwise")
                     }
+                    .disabled(isRefreshing)
                 }
             }
+            .refreshable { await load() }
         }
         .task { await load() }
     }
 
     private func load() async {
         isLoading = items.isEmpty
-        isRefreshing = !items.isEmpty
+        isRefreshing = true
         do { items = try await APIService.shared.fetchLibraryItems() } catch { /* keep existing items on error */ }
+        refreshID = UUID()
         isLoading = false
         isRefreshing = false
     }
