@@ -88,15 +88,19 @@ struct VideoView: View {
             }
         }
         .onAppear {
-            Task { await loadFolders(); setupTimeObserver() }
-            // Check for library play target
-            if let folder = UserDefaults.standard.string(forKey: "lib_play_folder"),
-               let file = UserDefaults.standard.string(forKey: "lib_play_file") {
-                UserDefaults.standard.removeObject(forKey: "lib_play_folder")
-                UserDefaults.standard.removeObject(forKey: "lib_play_file")
-                Task {
+            Task {
+                // Check for library play target before loading folders
+                let libFolder = UserDefaults.standard.string(forKey: "lib_play_folder")
+                let libFile = UserDefaults.standard.string(forKey: "lib_play_file")
+                if libFolder != nil {
+                    UserDefaults.standard.removeObject(forKey: "lib_play_folder")
+                    UserDefaults.standard.removeObject(forKey: "lib_play_file")
+                }
+                await loadFolders()
+                setupTimeObserver()
+                // Handle library play target after folders are loaded
+                if let folder = libFolder, let file = libFile {
                     await switchFolder(folder)
-                    // Find and play the specific file
                     if let idx = playlist.firstIndex(where: { $0.relativePath == file || $0.name == file }) {
                         playItem(at: idx)
                     }
@@ -466,8 +470,14 @@ struct VideoView: View {
                             Label("参数", systemImage: "slider.horizontal.3")
                         }
 
-                        Button { Task { await fetchSubtitles() } } label: {
-                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕已载", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill")
+                        Button {
+                            if currentSubtitleName.isEmpty {
+                                Task { await loadSubtitleIfNeeded() }
+                            } else {
+                                clearSubtitle()
+                            }
+                        } label: {
+                            Label("字幕", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill")
                                 .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
                         }
                         .disabled(isLoadingSubtitles)
@@ -630,11 +640,17 @@ struct VideoView: View {
                         .buttonStyle(.bordered)
                         .scaleEffect(syncScale)
                         
-                        Button { Task { await fetchSubtitles() } } label: {
-                            Label(currentSubtitleName.isEmpty ? "字幕" : "字幕已载", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill").font(.subheadline)
+                        Button {
+                            if currentSubtitleName.isEmpty {
+                                Task { await loadSubtitleIfNeeded() }
+                            } else {
+                                clearSubtitle()
+                            }
+                        } label: {
+                            Label("字幕", systemImage: currentSubtitleName.isEmpty ? "doc.text" : "doc.text.fill").font(.subheadline)
                                 .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
                         }.buttonStyle(.bordered).disabled(isLoadingSubtitles)
-                        
+
                         Button { withAnimation { isFullscreen = true } } label: {
                             Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.subheadline)
                         }.buttonStyle(.bordered)
@@ -833,6 +849,10 @@ struct VideoView: View {
             let mem = (try? JSONDecoder().decode([String: String].self, from: Data(subtitleMemoryData.utf8))) ?? [:]
             if let saved = mem[dir], !saved.isEmpty {
                 loadSubtitle(saved)
+            } else {
+                // 只有一个字幕时自动加载
+                let subs = (try? await APIService.shared.fetchSubtitles()) ?? []
+                if subs.count == 1 { loadSubtitle(subs[0]) }
             }
         } catch {
             statusMessage = error.localizedDescription
@@ -933,6 +953,23 @@ struct VideoView: View {
 
     // MARK: - Subtitle Parsing & Actions
 
+    private func loadSubtitleIfNeeded() async {
+        guard currentItem != nil else { return }
+        isLoadingSubtitles = true
+        defer { isLoadingSubtitles = false }
+        do {
+            let subs = try await APIService.shared.fetchSubtitles()
+            serverSubtitles = subs
+            if subs.count == 1 {
+                loadSubtitle(subs[0])
+            } else {
+                showSubtitlePicker = true
+            }
+        } catch {
+            serverSubtitles = []
+        }
+    }
+
     private func fetchSubtitles() async {
         guard currentItem != nil else { return }
         isLoadingSubtitles = true
@@ -969,6 +1006,12 @@ struct VideoView: View {
         if let data = try? JSONEncoder().encode(mem), let str = String(data: data, encoding: .utf8) {
             subtitleMemoryData = str
         }
+    }
+
+    private func clearSubtitle() {
+        currentSubtitleName = ""
+        subtitleEntries = []
+        saveSubtitleMemory(folder: selectedFolder)
     }
 
     private func loadSubtitle(_ name: String) {

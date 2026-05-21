@@ -29,8 +29,9 @@ packages:
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "2"
-        SUPPORTED_PLATFORMS: "iphoneos ipados"
+        SUPPORTED_PLATFORMS: "iphoneos ipados macos"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "YES"
+        SUPPORTS_MACCATALYST: "YES"
     info:
       path: DanmuApp/Info.plist
       properties:
