@@ -1269,7 +1269,7 @@ struct VideoView: View {
            let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
         if let m = try? NSRegularExpression(pattern: "(?:^|[_-])([a-z][a-z0-9]{9,11})(?:$|[_.-])").firstMatch(in: base, range: NSRange(0..<base.count)),
            let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
-        if let m = try? NSRegularExpression(pattern: "(\\d{9,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
+        if let m = try? NSRegularExpression(pattern: "(\\d{8,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
            let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
         return nil
     }
@@ -1290,7 +1290,7 @@ struct VideoView: View {
 
     private func detectIqiyiTVID(_ name: String) -> String? {
         let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
-        if let m = try? NSRegularExpression(pattern: "(\\d{9,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
+        if let m = try? NSRegularExpression(pattern: "(\\d{8,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
            let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
         return nil
     }
