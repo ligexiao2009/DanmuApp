@@ -4,7 +4,7 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .library
 
     enum Tab: String, CaseIterable {
-        case library = "剧集库"
+        case library = "剧库"
         case video = "视频"
         case live = "直播"
 

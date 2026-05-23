@@ -194,7 +194,11 @@ struct VideoView: View {
             if !isFullscreen {
                 VStack(spacing: 8) {
                     if (showControls || (isLandscape && showSidebar)) {
-                        Button { withAnimation { isFullscreen = true } } label: {
+                        Button {
+                            withAnimation { isFullscreen = true }
+                            showControls = true
+                            resetControlsTimer()
+                        } label: {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                                 .font(.title3)
                                 .padding(8)
@@ -283,6 +287,8 @@ struct VideoView: View {
                             Spacer()
                             Button {
                                 withAnimation { isFullscreen = false }
+                                showControls = true
+                                resetControlsTimer()
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.title2).foregroundStyle(.white)
@@ -384,11 +390,18 @@ struct VideoView: View {
                 if let current = currentItem {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
+                            HStack(spacing: 4) {
                                 Image(systemName: "play.tv.fill")
                                     .font(.caption2)
                                 Text("正在播放")
                                     .font(.caption2).bold()
+                                if !selectedFolder.isEmpty {
+                                    Text("·")
+                                        .font(.caption2)
+                                    Text(selectedFolderName)
+                                        .font(.caption2).bold()
+                                        .lineLimit(1)
+                                }
                             }
                             .foregroundStyle(.indigo)
                             .padding(.horizontal, 8).padding(.vertical, 4)
@@ -666,7 +679,11 @@ struct VideoView: View {
                                 .foregroundColor(currentSubtitleName.isEmpty ? .primary : .green)
                         }.buttonStyle(.bordered).disabled(isLoadingSubtitles)
 
-                        Button { withAnimation { isFullscreen = true } } label: {
+                        Button {
+                            withAnimation { isFullscreen = true }
+                            showControls = true
+                            resetControlsTimer()
+                        } label: {
                             Label("全屏", systemImage: "arrow.up.left.and.arrow.down.right").font(.subheadline)
                         }.buttonStyle(.bordered)
 
