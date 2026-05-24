@@ -81,6 +81,7 @@ struct LiveView: View {
                         portraitControls
                             .zIndex(0)
                     }
+                    .ignoresSafeArea(.keyboard)
                 }
             }
             .ignoresSafeArea(edges: isLandscape ? .bottom : [])
@@ -89,10 +90,11 @@ struct LiveView: View {
             setupTimeObserver()
             resetControlsTimer()
             NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { n in
-                keyboardHeight = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+                let h = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+                if abs(h - keyboardHeight) > 1 { keyboardHeight = h }
             }
             NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
-                keyboardHeight = 0
+                if keyboardHeight > 0 { keyboardHeight = 0 }
             }
         }
         .onDisappear {
