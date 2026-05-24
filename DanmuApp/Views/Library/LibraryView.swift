@@ -520,7 +520,7 @@ struct LibraryCard: View {
       Color.clear.aspectRatio(2.0 / 3.0, contentMode: .fit)
         .overlay {
           if let poster = item.poster {
-            CachedPosterView(url: APIService.shared.libraryPosterURL(originalURL: poster))
+            CachedPosterView(url: APIService.shared.libraryPosterURL(originalURL: poster)).allowsHitTesting(false)
           } else {
             Color(uiColor: .secondarySystemBackground)
               .overlay(Image(systemName: "film").foregroundStyle(.tertiary))
@@ -582,6 +582,7 @@ struct LibraryCard: View {
       .frame(maxWidth: .infinity, alignment: .leading)
       .background(Color(uiColor: .secondarySystemGroupedBackground))
     }
+    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
   }

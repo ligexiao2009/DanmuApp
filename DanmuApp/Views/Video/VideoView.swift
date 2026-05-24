@@ -457,7 +457,7 @@ struct VideoView: View {
                         }
                         .buttonStyle(.plain)
 
-                        TextField("BV号 / ep / VID", text: $danmakuID)
+                        TextField(selectedSource == "mango" ? "HHMMSS/videoId 或 YYYY/MM/DD/HHMMSS/videoId" : "BV号 / ep / VID", text: $danmakuID)
                             .textFieldStyle(.roundedBorder)
                             .font(.subheadline)
                             .submitLabel(.search)
@@ -485,7 +485,7 @@ struct VideoView: View {
                                 .symbolEffect(.bounce, value: refreshTrigger) // 图标旋转跳跃
                         }
                         .tint(.orange)
-                        .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                        .disabled(danmakuID.isEmpty || isLoadingDanmaku || selectedSource == "mango")
                         .scaleEffect(refreshScale) // 整体缩放
                         
                         Spacer()
@@ -693,7 +693,7 @@ struct VideoView: View {
                             .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 6))
                         }
 
-                        TextField("输入 BV号 / VID", text: $danmakuID)
+                        TextField(selectedSource == "mango" ? "芒果 HHMMSS/videoId" : "输入 BV号 / VID", text: $danmakuID)
                             .textFieldStyle(.plain)
                             .font(.subheadline)
                             .padding(.horizontal, 10).padding(.vertical, 8)
@@ -714,7 +714,7 @@ struct VideoView: View {
                                 .symbolEffect(.bounce, value: refreshTrigger)
                         }
                         .tint(.orange)
-                        .disabled(danmakuID.isEmpty || isLoadingDanmaku)
+                        .disabled(danmakuID.isEmpty || isLoadingDanmaku || selectedSource == "mango")
                         .scaleEffect(refreshScale)
                     }
                 }
@@ -882,20 +882,20 @@ struct VideoView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.vertical, 40)
             } else {
-                List {
-                    ForEach(Array(playlist.enumerated()), id: \.element.id) { idx, item in
-                        PlaylistRow(
-                            item: item,
-                            isActive: idx == currentIndex,
-                            onTap: { playItem(at: idx) },
-                            onDelete: { deleteItem(at: idx) }
-                        )
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .listRowSeparator(.hidden)
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(Array(playlist.enumerated()), id: \.element.id) { idx, item in
+                            PlaylistRow(
+                                item: item,
+                                isActive: idx == currentIndex,
+                                onTap: { playItem(at: idx) },
+                                onDelete: { deleteItem(at: idx) }
+                            )
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 4)
+                        }
                     }
                 }
-                .listStyle(.plain)
             }
         }
     }
@@ -975,8 +975,14 @@ struct VideoView: View {
         let bv = detectBVID(name)
         let tencentVid = detectTencentVID(name)
         let iqiyiId = detectIqiyiTVID(name)
+        let mangoId = detectMangoID(name)
 
-        if let v = tencentVid, bv == nil {
+        if let v = mangoId {
+            selectedSource = "mango"
+            danmakuID = v
+        } else if selectedSource == "mango" {
+            danmakuID = iqiyiId ?? item.videoId ?? ""
+        } else if let v = tencentVid, bv == nil {
             selectedSource = "qq"
             danmakuID = v
         } else if let v = bv {
@@ -985,10 +991,8 @@ struct VideoView: View {
         } else if let v = iqiyiId {
             selectedSource = "iqiyi"
             danmakuID = v
-        } else if let v = bv ?? tencentVid ?? iqiyiId {
-            danmakuID = v
         } else {
-            danmakuID = item.videoId ?? ""
+            danmakuID = bv ?? tencentVid ?? iqiyiId ?? item.videoId ?? ""
         }
 
         if !danmakuID.isEmpty && !danmakuHidden {
@@ -1364,6 +1368,25 @@ struct VideoView: View {
         if let m = try? NSRegularExpression(pattern: "(\\d{8,16})").firstMatch(in: base, range: NSRange(0..<base.count)),
            let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
         return nil
+    }
+
+    private func detectNumericID(_ name: String) -> String? {
+        let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+        if let m = try? NSRegularExpression(pattern: "(\\d{8,10})").firstMatch(in: base, range: NSRange(0..<base.count)),
+           let r = Range(m.range(at: 1), in: base) { return String(base[r]) }
+        return nil
+    }
+
+    /// 从文件名提取芒果 ID：匹配 mango_HHMMSS_videoId 格式，返回 "HHMMSS/videoId"
+    private func detectMangoID(_ name: String) -> String? {
+        let base = name.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+        let pattern = "mango[_-](\\d{6})[_-](\\d+)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+              let m = regex.firstMatch(in: base, range: NSRange(0..<base.utf16.count)),
+              m.numberOfRanges >= 3,
+              let r1 = Range(m.range(at: 1), in: base),
+              let r2 = Range(m.range(at: 2), in: base) else { return nil }
+        return "\(base[r1])/\(base[r2])"
     }
 
     func player(layer: KSPlayerLayer, state: KSPlayerState) {}
