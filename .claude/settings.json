@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//Users/yangyang/vscode/b-video/routes/**)",
-      "Read(//Users/yangyang/vscode/b-video/utils/**)",
-      "Read(//Users/yangyang/vscode/b-video/public/**)"
-    ]
-  }
-}
