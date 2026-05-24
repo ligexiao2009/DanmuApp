@@ -42,7 +42,7 @@ struct LibraryView: View {
             Image(systemName: "tv.slash")
               .font(.system(size: 56))
               .foregroundStyle(.tertiary)
-            Text("剧集库为空")
+            Text("剧库为空")
               .font(.title3.bold())
               .foregroundColor(.secondary)
             Button("刷新") {
@@ -72,7 +72,7 @@ struct LibraryView: View {
           }
         }
       }
-      .navigationTitle("剧集库")
+      .navigationTitle("剧库")
       .navigationBarTitleDisplayMode(.inline)
       .searchable(text: $searchText, prompt: "搜索片名、年份、类型...")
       .toolbar {

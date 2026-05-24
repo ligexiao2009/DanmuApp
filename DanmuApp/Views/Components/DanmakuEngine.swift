@@ -7,6 +7,7 @@ final class DanmakuEngine: ObservableObject {
     }
 
     private var danmus: [DanmakuItem] = []
+    private var seenHashes: Set<Int> = []
     private var danmuIndex: Int = 0
     private var activeItems: [ActiveDanmaku] = []
     private var laneAvailableAt: [Double] = []
@@ -30,6 +31,7 @@ final class DanmakuEngine: ObservableObject {
 
     func load(_ items: [DanmakuItem]) {
         danmus = items.sorted { $0.time < $1.time }
+        seenHashes = Set(items.map { $0.contentHash })
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
@@ -37,7 +39,10 @@ final class DanmakuEngine: ObservableObject {
 
     func append(_ items: [DanmakuItem]) {
         guard !items.isEmpty else { return }
-        danmus = (danmus + items).sorted { $0.time < $1.time }
+        let new = items.filter { !seenHashes.contains($0.contentHash) }
+        guard !new.isEmpty else { return }
+        seenHashes.formUnion(new.map { $0.contentHash })
+        danmus = (danmus + new).sorted { $0.time < $1.time }
     }
 
     func reset() {

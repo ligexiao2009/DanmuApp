@@ -24,6 +24,14 @@ struct DanmakuItem: Identifiable, Decodable {
         }
     }
 
+    var contentHash: Int {
+        var h = Hasher()
+        h.combine(time)
+        h.combine(text)
+        h.combine(ctime)
+        return h.finalize()
+    }
+
     init(time: Double, text: String, color: String? = nil) {
         self.time = time
         self.text = text
