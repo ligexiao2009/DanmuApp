@@ -1,9 +1,12 @@
 import SwiftUI
 import AVKit
+import KSPlayer
 
 @main
 struct DanmuApp: App {
     init() {
+        KSOptions.firstPlayerType = KSMEPlayer.self
+        KSOptions.secondPlayerType = nil
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
             try AVAudioSession.sharedInstance().setActive(true)

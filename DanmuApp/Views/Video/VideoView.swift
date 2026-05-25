@@ -966,7 +966,8 @@ struct VideoView: View {
         playerLayer?.delegate = nil
         playerLayer?.pause()
         let url = APIService.videoStreamURL(name: item.relativePath)
-        let layer = KSPlayerLayer(url: url, options: KSOptions(), delegate: playerDelegate)
+        let options = KSOptions()
+        let layer = KSPlayerLayer(url: url, options: options, delegate: playerDelegate)
         playerLayer = layer
         layer.play()
         isPlaying = true
@@ -980,8 +981,6 @@ struct VideoView: View {
         if let v = mangoId {
             selectedSource = "mango"
             danmakuID = v
-        } else if selectedSource == "mango" {
-            danmakuID = iqiyiId ?? item.videoId ?? ""
         } else if let v = tencentVid, bv == nil {
             selectedSource = "qq"
             danmakuID = v
@@ -991,6 +990,8 @@ struct VideoView: View {
         } else if let v = iqiyiId {
             selectedSource = "iqiyi"
             danmakuID = v
+        } else if selectedSource == "mango" {
+            danmakuID = iqiyiId ?? item.videoId ?? ""
         } else {
             danmakuID = bv ?? tencentVid ?? iqiyiId ?? item.videoId ?? ""
         }
