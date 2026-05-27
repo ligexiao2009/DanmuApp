@@ -883,7 +883,7 @@ struct VideoView: View {
                 .padding(.vertical, 40)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 4) {
+                    VStack(spacing: 4) {
                         ForEach(Array(playlist.enumerated()), id: \.element.id) { idx, item in
                             PlaylistRow(
                                 item: item,

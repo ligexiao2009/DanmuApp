@@ -12,6 +12,8 @@ final class DanmakuEngine: ObservableObject {
     private var activeItems: [ActiveDanmaku] = []
     private var laneAvailableAt: [Double] = []
     private var canvasSize: CGSize = .zero
+    /// 已渲染弹幕集合，存于 engine 以避免视图重建丢失
+    var renderedDanmakus: Set<ActiveDanmaku> = []
 
     private let laneGap: Double = 24
     private let maxPerFrame: Int = 6
@@ -35,6 +37,7 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
+        renderedDanmakus.removeAll()
     }
 
     func append(_ items: [DanmakuItem]) {
@@ -49,6 +52,7 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
+        renderedDanmakus.removeAll()
     }
 
     func seek(to time: Double) {
@@ -56,6 +60,7 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = danmus.firstIndex(where: { $0.time >= target }) ?? danmus.count
         activeItems.removeAll()
         laneAvailableAt.removeAll()
+        renderedDanmakus.removeAll()
     }
 
     func update(size: CGSize) { canvasSize = size }
@@ -64,7 +69,7 @@ final class DanmakuEngine: ObservableObject {
     func tick(currentTime: Double, elapsed: TimeInterval) -> [ActiveDanmaku] {
         guard canvasSize.width > 0, canvasSize.height > 0 else { return [] }
 
-        let now = elapsed * 1000
+        let now = currentTime * 1000  // 视频时间（毫秒），不依赖系统时间
         let triggerTime = currentTime + config.offset
 
         // Emit due danmaku
@@ -75,7 +80,7 @@ final class DanmakuEngine: ObservableObject {
             if emit(danmus[danmuIndex], now: now) { emitted += 1 }
         }
 
-        // Filter finished danmaku
+        // Filter finished danmaku — 用视频时间，不依赖系统时间
         activeItems = activeItems.filter { now - $0.startTime < $0.duration }
         return activeItems
     }

@@ -11,6 +11,10 @@ struct DanmakuOverlay: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: DanmakuUIView, context: Context) {
+        // Engine 实例变化时清空 drawables，避免旧状态污染
+        if uiView.engine !== engine {
+            uiView.clearAll()
+        }
         uiView.engine = engine
         uiView.currentTime = currentTime
         uiView.isPlaying = isPlaying
@@ -23,7 +27,6 @@ final class DanmakuUIView: UIView {
     var isPlaying: Bool = false
 
     private var displayLink: CADisplayLink?
-    private var drawables: Set<DanmakuEngine.ActiveDanmaku> = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -32,6 +35,16 @@ final class DanmakuUIView: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    deinit {
+        stopDisplayLink()
+    }
+
+    func clearAll() {
+        guard let engine else { return }
+        engine.renderedDanmakus.removeAll()
+        layer.sublayers?.removeAll()
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -56,19 +69,19 @@ final class DanmakuUIView: UIView {
 
     @objc private func tick(_ link: CADisplayLink) {
         guard let engine else { return }
-        let now = link.timestamp * 1000
         let active = engine.tick(currentTime: currentTime, elapsed: link.timestamp)
         let current = Set(active)
+        let rendered = engine.renderedDanmakus
 
         // Remove finished danmaku
-        for item in drawables.subtracting(current) {
+        for item in rendered.subtracting(current) {
             if let layer = self.layer.sublayers?.first(where: { ($0.value(forKey: "dHash") as? Int) == item.hashValue }) {
                 layer.removeFromSuperlayer()
             }
         }
 
         // Add new danmaku with native Core Animation
-        for item in active where !drawables.contains(item) {
+        for item in active where !rendered.contains(item) {
             let layer = CATextLayer()
             layer.string = item.text
             layer.fontSize = item.fontSize
@@ -87,6 +100,7 @@ final class DanmakuUIView: UIView {
             let anim = CABasicAnimation(keyPath: "position.x")
             anim.fromValue = bounds.width + ceil(textWidth) / 2
             anim.toValue = -ceil(textWidth) / 2
+            let now = currentTime * 1000
             let remaining = max(item.duration - (now - item.startTime), 0)
             anim.duration = remaining / 1000
             anim.isRemovedOnCompletion = true
@@ -94,7 +108,7 @@ final class DanmakuUIView: UIView {
             layer.add(anim, forKey: "scroll")
         }
 
-        drawables = current
+        engine.renderedDanmakus = current
     }
 
     private func hexToCGColor(_ hex: String) -> CGColor {
