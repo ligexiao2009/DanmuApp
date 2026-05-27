@@ -18,6 +18,12 @@ struct DanmuApp: App {
         Task.detached {
             _ = try? await APIService.shared.fetchFolders()
         }
+
+        // Pre-warm FFmpeg/KSPlayer: 首次初始化编解码器很重，放到后台提前触发
+        Task.detached {
+            let options = KSOptions()
+            _ = KSPlayerLayer(url: URL(string: "about:blank")!, options: options)
+        }
     }
 
     var body: some Scene {

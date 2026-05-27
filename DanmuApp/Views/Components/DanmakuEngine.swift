@@ -12,8 +12,6 @@ final class DanmakuEngine: ObservableObject {
     private var activeItems: [ActiveDanmaku] = []
     private var laneAvailableAt: [Double] = []
     private var canvasSize: CGSize = .zero
-    /// 已渲染弹幕集合，存于 engine 以避免视图重建丢失
-    var renderedDanmakus: Set<ActiveDanmaku> = []
 
     private let laneGap: Double = 24
     private let maxPerFrame: Int = 6
@@ -37,7 +35,6 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
-        renderedDanmakus.removeAll()
     }
 
     func append(_ items: [DanmakuItem]) {
@@ -52,7 +49,6 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
-        renderedDanmakus.removeAll()
     }
 
     func seek(to time: Double) {
@@ -60,7 +56,6 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = danmus.firstIndex(where: { $0.time >= target }) ?? danmus.count
         activeItems.removeAll()
         laneAvailableAt.removeAll()
-        renderedDanmakus.removeAll()
     }
 
     func update(size: CGSize) { canvasSize = size }

@@ -105,6 +105,9 @@ struct VideoView: View {
             }
         }
         .onAppear {
+            // 预热 UITextField 文本输入系统，避免首次点击 TextField 卡顿
+            // 需要等键盘真正弹出再关闭，触发完整的初始化流程
+            warmupTextInput()
             Task {
                 // Check for library play target before loading folders
                 let libFolder = UserDefaults.standard.string(forKey: "lib_play_folder")
@@ -114,11 +117,11 @@ struct VideoView: View {
                     UserDefaults.standard.removeObject(forKey: "lib_play_file")
                 }
                 let hasLibTarget = libFolder != nil
-                await loadFolders(autoPlay: !hasLibTarget)
-                setupTimeObserver()
-                // Handle library play target after folders are loaded
-                if let folder = libFolder, let file = libFile {
+
+                if hasLibTarget, let folder = libFolder, let file = libFile {
+                    // 有播放目标时：跳过 fetchFolders，直接设置目录并播放
                     selectedFolder = folder
+                    setupTimeObserver()
                     try? await APIService.shared.setVideoDir(folder)
                     let names = try? await APIService.shared.fetchVideos()
                     if let names {
@@ -136,6 +139,10 @@ struct VideoView: View {
                             playItem(at: idx)
                         }
                     }
+                } else {
+                    // 正常启动：加载目录列表
+                    await loadFolders(autoPlay: true)
+                    setupTimeObserver()
                 }
             }
         }
@@ -1394,6 +1401,42 @@ struct VideoView: View {
     func player(layer: KSPlayerLayer, currentTime: TimeInterval, totalTime: TimeInterval) {}
     func player(layer: KSPlayerLayer, finish error: Error?) {}
     func player(layer: KSPlayerLayer, bufferedCount: Int, consumeTime: TimeInterval) {}
+
+    /// 预热文本输入系统：创建隐藏窗口，弹出键盘再立即关闭
+    private func warmupTextInput() {
+        guard !Self.textInputWarmedUp else { return }
+        Self.textInputWarmedUp = true
+
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first else { return }
+
+        let hiddenWindow = UIWindow(windowScene: scene)
+        hiddenWindow.frame = CGRect(x: 0, y: 0, width: 1, height: 1)
+        hiddenWindow.alpha = 0.01
+        hiddenWindow.isHidden = false
+
+        let vc = UIViewController()
+        hiddenWindow.rootViewController = vc
+        hiddenWindow.makeKeyAndVisible()
+
+        let textField = UITextField()
+        vc.view.addSubview(textField)
+
+        // 弹出键盘 → 等键盘通知 → 再关闭
+        _ = textField.becomeFirstResponder()
+
+        var observer: NSObjectProtocol?
+        observer = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardDidShowNotification,
+            object: nil, queue: .main
+        ) { _ in
+            textField.resignFirstResponder()
+            hiddenWindow.isHidden = true
+            if let obs = observer { NotificationCenter.default.removeObserver(obs) }
+        }
+    }
+
+    private static var textInputWarmedUp = false
 }
 
 // MARK: - Playlist Row

@@ -84,7 +84,7 @@ struct LiveView: View {
                     .ignoresSafeArea(.keyboard)
                 }
             }
-            .ignoresSafeArea(edges: isLandscape ? .bottom : [])
+            .ignoresSafeArea(edges: isLandscape ? .all : [])
         }
         .onAppear {
             setupTimeObserver()
