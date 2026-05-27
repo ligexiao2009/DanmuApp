@@ -15,8 +15,10 @@ final class DanmakuEngine: ObservableObject {
 
     private let laneGap: Double = 24
     private let maxPerFrame: Int = 6
+    private var nextDanmakuId: Int = 0
 
     struct ActiveDanmaku: Hashable {
+        let id: Int
         let text: String
         let colorHex: String
         let y: Double
@@ -25,6 +27,10 @@ final class DanmakuEngine: ObservableObject {
         let startTime: Double
         let duration: Double
         let fontSize: Double
+
+        // 只用 id 做身份标识，避免 startTime/y 微变导致 Set 误判
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
     }
 
     var danmusCount: Int { danmus.count }
@@ -35,6 +41,7 @@ final class DanmakuEngine: ObservableObject {
         danmuIndex = 0
         activeItems.removeAll()
         laneAvailableAt.removeAll()
+        nextDanmakuId = 0
     }
 
     func append(_ items: [DanmakuItem]) {
@@ -112,6 +119,7 @@ final class DanmakuEngine: ObservableObject {
 
         let colorHex = item.color ?? "#ffffff"
         activeItems.append(ActiveDanmaku(
+            id: nextDanmakuId,
             text: text,
             colorHex: colorHex,
             y: y,
@@ -121,6 +129,7 @@ final class DanmakuEngine: ObservableObject {
             duration: durationMs,
             fontSize: fontSize
         ))
+        nextDanmakuId += 1
         return true
     }
 

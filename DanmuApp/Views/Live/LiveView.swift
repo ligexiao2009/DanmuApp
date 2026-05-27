@@ -70,7 +70,9 @@ struct LiveView: View {
                                     .background(.ultraThinMaterial)
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                                     .foregroundColor(.white)
-                            }.padding(12)
+                            }
+                            .padding(.top, 44)
+                            .padding(.trailing, 12)
                         }
                     }
                 } else {
@@ -84,7 +86,7 @@ struct LiveView: View {
                     .ignoresSafeArea(.keyboard)
                 }
             }
-            .ignoresSafeArea(edges: isLandscape ? .all : [])
+            .ignoresSafeArea(edges: isLandscape ? .bottom : [])
         }
         .onAppear {
             setupTimeObserver()

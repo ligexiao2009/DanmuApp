@@ -1,20 +1,22 @@
 import SwiftUI
 import UIKit
 
+/// 包装 DanmakuUIView 使其生命周期独立于 SwiftUI 渲染周期
+final class DanmakuViewContainer: ObservableObject {
+    let view = DanmakuUIView()
+}
+
 struct DanmakuOverlay: UIViewRepresentable {
     @ObservedObject var engine: DanmakuEngine
     var currentTime: Double
     var isPlaying: Bool
+    @StateObject private var container = DanmakuViewContainer()
 
     func makeUIView(context: Context) -> DanmakuUIView {
-        DanmakuUIView()
+        container.view
     }
 
     func updateUIView(_ uiView: DanmakuUIView, context: Context) {
-        // Engine 实例变化时清空 drawables，避免旧状态污染
-        if uiView.engine !== engine {
-            uiView.clearAll()
-        }
         uiView.engine = engine
         uiView.currentTime = currentTime
         uiView.isPlaying = isPlaying
@@ -39,11 +41,6 @@ final class DanmakuUIView: UIView {
 
     deinit {
         stopDisplayLink()
-    }
-
-    func clearAll() {
-        drawables.removeAll()
-        layer.sublayers?.removeAll()
     }
 
     override func layoutSubviews() {
